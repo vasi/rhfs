@@ -23,6 +23,10 @@ class Buffer
 		seek(off)
 		@io.read(size)
 	end
+	def pwrite(off, buf)
+		seek(off)
+		@io.write(buf)
+	end
 	
 	def st_read(st, off = 0)
 		seek(off)
