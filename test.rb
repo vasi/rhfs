@@ -39,19 +39,19 @@ class Buffer
 	end
 end
 
-class Record < BinData::Record
+class BERecord < BinData::Record
 	endian :big
 end
 
 # See IOApplePartitionScheme.h
 class APM
-	class Block0 < Record
+	class Block0 < BERecord
 		string	:sig, :length => 2
 		uint16	:blkSize
 		uint32	:blkCount
 		# ignore the rest
 	end
-	class Entry < Record
+	class Entry < BERecord
 		string	:signature, :length => 2
 		uint16	:reserved_1
 		uint32	:map_entries
@@ -104,11 +104,30 @@ end
 class HFS
 	Sector = 512
 	ReservedSectors = 2
-	class MDB < Record
+	MDBOffset = ReservedSectors * Sector
+	class MDB < BERecord
+		string	:sigWord, :length => 2
+		string	:ignore_1, :length => 16
+		uint16	:nmAlBlks
+		uint32	:alBlkSiz
+		uint32	:clpSiz
+		uint16	:alBlSt
+		string	:ignore_2, :length => 94
 		
+		string	:embedSigWord, :length => 2
+		uint16	:embedStartBlock
+		uint16	:embedBlockCount
 	end
 	
+	attr_accessor :mdb
 	def initialize(buf)
+		@buf = buf
+		@mdb = @buf.st_read(MDB, MDBOffset)
+		raise "Invalid HFS partition" unless mdb.sigWord == 'BD'
+	end
+	
+	def write
+		@buf.st_write(mdb, MDBOffset)
 	end
 end
 
@@ -116,4 +135,5 @@ require 'pp'
 dev = ARGV.shift
 buf = Buffer.new(dev)
 apm = APM.new(buf)
-pp apm
+hfs = HFS.new(apm.partition(1))
+pp hfs
