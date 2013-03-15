@@ -24,4 +24,10 @@ class Hdiutil
 		end
 		return dev
 	end
+	
+	def self.create(file, *args)
+		tmp = Dir::Tmpname.create('', File.dirname(file)) { }
+		plist = run('create', *args, tmp)
+		File.rename(plist.first, file)
+	end
 end

@@ -17,11 +17,24 @@ Usage: ss-hfs #{name} [options]#{usage}
 EOS
 end
 
-Subcommand = Struct.new(:name, :usage, :desc, :parser)
+class Subcommand
+	attr_reader :name, :desc, :parser
+	def initialize(name, usage, desc, &block)
+		@name, @desc = name, desc
+		@parser = Trollop::Parser.new do
+			banner xbanner(name, usage, desc)
+			instance_eval(&block)
+		end
+	end
+end
 
 subcommands = [
-	Subcommand.new(:seed, "(DEVICE | IMAGE)", "Create a shrinkable disk image",
-		Trollop::Parser.new)
+	Subcommand.new(:seed, "(DEVICE | IMAGE)",
+			"Initialize a device so it will be shrinkable") do
+		opt :create, "Use a new device of this size", :type => :string
+		opt :extra_args, "Use extra hdiutil args for creation",
+			:type => :string
+	end,
 ]
 
 global_parser = Trollop::Parser.new do	
@@ -51,7 +64,6 @@ Trollop.with_standard_exception_handling global_parser do
 end
 
 Trollop.with_standard_exception_handling sub.parser do
-	sub.parser.banner xbanner(sub.name, sub.usage, sub.desc)
 	opts = sub.parser.parse ARGV
 	begin
 		Ops.send(sub.name, opts, *ARGV)
