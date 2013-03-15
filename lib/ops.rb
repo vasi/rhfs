@@ -1,4 +1,5 @@
 require_relative 'hfs'
+require_relative 'hdiutil'
 
 # Extensions
 class APM
@@ -14,6 +15,11 @@ end
 class Ops
 	# Corrupt an HFS partition, so MacOS offers to format it
 	def self.seed_dev(dev)
+		Hdiutil.attach(dev) do |d|
+			puts d
+		end
+		return
+		
 		open(dev, 'wb+') do |f|
 			apm = APM.new(Buffer.new(f))
 			part = apm.partition(apm.find_hfs)
