@@ -14,7 +14,7 @@ end
 
 class Ops
 	# Corrupt an HFS partition, so MacOS offers to format it
-	def self.seed_dev(dev)
+	def self.seed(opts, dev)
 		Hdiutil.attach(dev) do |d|
 			puts d
 		end
