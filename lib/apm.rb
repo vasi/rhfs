@@ -76,7 +76,7 @@ class APM
 		@buf.st_write(block0, 0)
 		partitions.each_with_index do |p,i|
 			p.map_entries = partitions.count if fixup
-			@buf.st_write(p, i * blkSize)
+			@buf.st_write(p, (i + 1) * blkSize)
 		end
 	end
 	
