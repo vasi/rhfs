@@ -3,17 +3,6 @@ require 'tmpdir'
 require_relative 'hfs'
 require_relative 'hdiutil'
 
-# Extensions
-class APM
-	HFSType = 'Apple_HFS'
-	
-	# Find the index of the first hfs partition, if any
-	def find_hfs
-		partitions.find_index { |p| p.type == HFSType } \
-			or raise "No HFS partition"
-	end
-end
-
 class Ops
 	# Corrupt an HFS partition, so MacOS offers to format it
 	def self.seed(opts, file)

@@ -1,47 +1,6 @@
 require 'rubygems'
 require 'bindata'
 
-class Buffer
-	def initialize(p, off = 0, size = nil)
-		if p.respond_to? :seek
-			@io = p
-		else
-			@io = open(p)
-		end
-		@off = off
-		@size = size || begin
-			@io.seek(0, IO::SEEK_END)
-			@io.pos - @off
-		end
-	end
-	
-	def seek(off)
-		@io.seek(@off + off, IO::SEEK_SET)
-	end
-	
-	def pread(off, size)
-		seek(off)
-		@io.read(size)
-	end
-	def pwrite(off, buf)
-		seek(off)
-		@io.write(buf)
-	end
-	
-	def st_read(st, off = 0)
-		seek(off)
-		st.read(@io)
-	end
-	def st_write(st, off = 0)
-		seek(off)
-		st.write(@io)
-	end 
-	
-	def sub(off, size = nil)
-		Buffer.new(@io, @off + off, size || @size - off)
-	end
-end
-
 class BERecord < BinData::Record
 	endian :big
 end
@@ -100,6 +59,14 @@ class APM
 	def partition(i)
 		part = partitions[i]
 		@buf.sub(part.pblock_start * blkSize, part.pblocks * blkSize)
+	end
+
+	HFSType = 'Apple_HFS'
+	
+	# Find the index of the first hfs partition, if any
+	def find_hfs
+		partitions.find_index { |p| p.type == HFSType } \
+			or raise "No HFS partition"
 	end
 end
 
