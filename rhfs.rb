@@ -29,11 +29,12 @@ class Subcommand
 end
 
 subcommands = [
-	Subcommand.new(:seed, "(DEVICE | IMAGE)",
-			"Initialize a device so it will be shrinkable") do
-		opt :create, "Use a new device of this size", :type => :string
-		opt :extra_args, "Use extra hdiutil args for creation",
-			:type => :string
+	Subcommand.new(:create, "SIZE PATH",
+			"Create a new sparsebundle disk image") do
+		opt :whole, "Don't use a partition table"
+		opt :format, "Include a valid HFS+ filesystem (Mac only)"
+		opt :band, "Size of each band of the image", :type => :string,
+			:default => Sparsebundle::DefaultBandSize.to_s
 	end,
 ]
 
@@ -66,7 +67,7 @@ end
 Trollop.with_standard_exception_handling sub.parser do
 	opts = sub.parser.parse ARGV
 	begin
-		Ops.send(sub.name, opts, *ARGV)
+		RHFSCommands.send(sub.name, opts, *ARGV)
 	rescue ArgumentError
 		raise Trollop::CommandlineError.new("Wrong number of arguments")
 	end

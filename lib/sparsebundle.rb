@@ -57,6 +57,7 @@ class Sparsebundle < Buffer
 	PathPlist = "Info.plist"
 	PathLock = "token"
 	
+	Sector = 512
 	DefaultBandSize = 8 * 1024 * 1024
 	
 	
@@ -83,7 +84,14 @@ class Sparsebundle < Buffer
 	end
 
 	def self.create(path, size, band_size = DefaultBandSize, &block)
-		# FIXME: verify sizes are ok?
+		raise "Band size in a sparsebundle must be a multiple of sector size" \
+			if band_size % Sector != 0
+		raise "Total sparsebundle size must be a multiple of sector size" \
+			if size % Sector != 0
+		band_sectors = band_size / Sector
+		raise "Sparsebundle bands must be between 2048 and 16777216 sectors" \
+			if band_sectors < 2048 || band_sectors > 16777216 
+		
 		plist = PlistRequired.merge({
 			KeyVersion => ValueVersion,
 			KeySize => size,
@@ -95,6 +103,13 @@ class Sparsebundle < Buffer
 		FileUtils.touch(File.join(path, PathLock))
 		plist.save_plist(File.join(path, PathPlist))
 		return new(path, &block)
+	end
+	
+	def self.create_approx(path, size, band_size = DefaultBandSize, &block)
+		band_sectors = (band_size.to_f / Sector).round
+		band_sectors = [2048, [16777216, band_sectors].min].max
+		size = Sector * (size.to_f / Sector).ceil
+		create(path, size, Sector * band_sectors, &block)
 	end
 	
 	def lock
