@@ -81,7 +81,7 @@ end
 class IOBuffer < Buffer
 	DefaultSize = 2**64
 	
-	def initialize(io, size = nil, rw = true, &block)
+	def initialize(io, rw = true, size = nil, &block)
 		super()
 		if io.respond_to? :read
 			@io = io
@@ -89,14 +89,17 @@ class IOBuffer < Buffer
 			@io = open(io, rw ? 'a+' : 'r')
 		end
 		
-		# Could use ioctls (eg: DKIOCGETBLOCKCOUNT), but too much trouble
 		@size = size || find_size || DefaultSize
 		with(&block)
 	end
 	
 	def find_size
+		# Could use ioctls (eg: DKIOCGETBLOCKCOUNT) on devices,
+		# but too much trouble
+		return nil unless File.file?(@io)
+		
 		@io.seek(0, IO::SEEK_END)
-		@io.pos.zero? ? nil : @io.pos
+		@io.pos
 	end
 	
 	attr_reader :size

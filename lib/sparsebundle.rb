@@ -15,7 +15,7 @@ class Sparsebundle < Buffer
 			open if File.exist?(@path)
 		end
 		def alloc; @io && @io.size; end
-		def open; @io ||= IOBuffer.new(@path, @size, @rw); end
+		def open; @io ||= IOBuffer.new(@path, @rw); end
 		def close; @io.close if @io; end
 				
 		def pread(off, len)
@@ -37,7 +37,7 @@ class Sparsebundle < Buffer
 			open # forced
 			space = [alloc - off, 0].max
 			want = [nz, [space, len].min].max
-			ret = @io.pwrite(off, buf.bytesize(0, want))
+			ret = @io.pwrite(off, buf.byteslice(0, want))
 			return len if ret == want
 			return ret
 		end
