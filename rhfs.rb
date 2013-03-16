@@ -60,7 +60,6 @@ Trollop.with_standard_exception_handling global_parser do
 			or raise Trollop::CommandlineError.new("unknown subcommand #{cmd.inspect}")
 	rescue Trollop::HelpNeeded
 		global_parser.educate
-		exit # FIXME
 	end
 end
 

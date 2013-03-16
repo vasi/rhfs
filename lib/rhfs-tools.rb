@@ -6,6 +6,8 @@ require_relative 'hdiutil'
 require_relative 'sparsebundle'
 
 class RHFS
+	TypeUnwrapped = 'RHFS_Unwrap'
+	
 	# Allow suffixes for MB, g, etc
 	def self.size(s)
 		suffixes = %w[k m g t]
@@ -38,9 +40,8 @@ class RHFS
 			:type => APM::TypeHFS,
 			:pblock_start => start,
 			:pblocks => (size / bsize) - start,
-			:flags => %w[Valid Allocated Readable Writable].
-				reduce(0) { |a, f| a | APM::Entry.const_get(f) } 
 		)
+		hfs.set_flags(*%w[Valid Allocated Readable Writable])
 		
 		apm.partitions = [pmap, hfs]
 		apm.write
@@ -57,12 +58,70 @@ class RHFS
 	end
 	
 	def self.unwrap(buf)
+		# Make sure we have a valid disk
+		apm = APM.new(buf)
+		idxs = apm.partitions.each_with_index.
+			select { |p,i| p.type == APM::TypeHFS }
+		raise "Need exactly one HFS partition" unless idxs.count == 1
 		
+		idx = idxs[0][1]
+		part = apm.partitions[idx]
+		hfs = HFS.new(apm.partition(idx))
+		raise "Not a wrapped HFS+ partition" \
+			unless hfs.mdb.embedSigWord == HFS::MDB::EmbedSignature
+		
+		# Calculate the sizes of the new partitions
+		bsize = apm.block0.blkSize
+		pre_size_bytes = (hfs.mdb.alBlSt * HFS::Sector) +
+			(hfs.mdb.embedStartBlock * hfs.mdb.alBlkSiz)		
+		
+		pre_size = pre_size_bytes / bsize
+		wrap_size = hfs.mdb.embedBlockCount * hfs.mdb.alBlkSiz / bsize
+		post_size = part.pblocks - pre_size - wrap_size
+		sizes = [pre_size, wrap_size, post_size]
+		
+		# Build the new partitions
+		start = part.pblock_start
+		repl = sizes.each_with_index.map do |sz, i|
+			pt = APM::Entry.new(part)
+			pt.pblock_start = start
+			pt.pblocks = sz
+			pt.lblocks_start = pt.lblocks = 0
+			if i % 2 == 0 # wrapper part
+				pt.type = TypeUnwrapped
+				pt.set_flags(*%w[Valid Allocated])
+			end
+			start += sz
+			pt
+		end
+		apm.partitions[idx, 1] = repl
+		apm.write
+	end
+	
+	def self.rewrap(buf)
+		# Make sure we have a valid disk
+		apm = APM.new(buf)
+		ws = apm.partitions.each_with_index.
+			select { |p,i| p.type == TypeUnwrapped }
+		raise "Need exactly two wrap partitions" unless ws.count == 2
+		w1, wi1, w2, wi2 = *ws.flatten
+		raise "Wrap partitions must surround a partition" unless wi2 - wi1 == 2
+		h = apm.partitions[wi1 + 1]
+		raise "There must be a HFS partition to unwrap" \
+			unless h.type == APM::TypeHFS
+		
+		# Build the original partition
+		r = APM::Entry.new(h)
+		r.pblock_start = w1.pblock_start
+		r.pblocks = w1.pblocks + h.pblocks + w2.pblocks
+		apm.partitions[wi1, 3] = [r]
+		apm.write
 	end
 end
 
 class RHFSCommands
 	def self.create(opts, *args)
+		# FIXME: test different args
 		raise Trollop::CommandlineError.new("Bad number of arguments") \
 			unless args.size == 2
 		size, path = *args

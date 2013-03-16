@@ -10,7 +10,7 @@ end
 class APM
 	DefaultSector = 512
 	DefaultEntries = 0x3f
-	TypePMAP = 'Apple_Partition_Map'
+	TypePMAP = 'Apple_partition_map'
 	TypeHFS = 'Apple_HFS'
 	
 	class Block0 < BERecord
@@ -42,10 +42,17 @@ class APM
 		# treat the rest as reserved
 		string	:ignore_1, :length => 420
 		hide	:reserved_1, :ignore_1
+		
+		def set_flags(*fs)
+			flags = 0
+			fs.each do |f|
+				flags |= f.respond_to?(:|) ? f : self.class.const_get(f)
+			end
+		end
 	end
 	
 	def blkSize; @block0.blkSize; end
-	def count; @partitions.first.map_entries; end
+	def count; @partitions.count; end
 	
 	DONT_READ = false
 	
@@ -74,21 +81,20 @@ class APM
 	
 	def write(fixup = true)
 		@buf.st_write(block0, 0)
-		partitions.each_with_index do |p,i|
-			p.map_entries = partitions.count if fixup
-			@buf.st_write(p, (i + 1) * blkSize)
+		partitions.each_with_index do |pt,i|
+			pt.map_entries = count if fixup
+			@buf.st_write(pt, (i + 1) * blkSize)
 		end
+		
+		pmap = partitions[0]
+		if pmap.type == TypePMAP
+			blanks = pmap.pblocks - count
+			@buf.pwrite((count + 1) * blkSize, "\0" * (blanks * blkSize))
+		end	
 	end
 	
 	def partition(i)
 		part = partitions[i]
 		@buf.sub(part.pblock_start * blkSize, part.pblocks * blkSize)
-	end
-	
-		
-	# Find the index of the first hfs partition, if any
-	def find_hfs
-		partitions.find_index { |p| p.type == TypeHFS } \
-			or raise "No HFS partition"
 	end
 end

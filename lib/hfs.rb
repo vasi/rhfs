@@ -18,6 +18,7 @@ class HFS
 		uint16	:alBlSt
 		string	:ignore_2, :length => 94
 		
+		EmbedSignature = 'H+'
 		string	:embedSigWord, :length => 2
 		uint16	:embedStartBlock
 		uint16	:embedBlockCount
