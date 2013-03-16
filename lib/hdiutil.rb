@@ -4,19 +4,27 @@ require 'plist'
 class Hdiutil
 	Command = "/usr/bin/hdiutil"
 	
-	def self.run(subcmd, *opts)
-		plist = nil
-		IO.popen([Command, subcmd, *opts]) { |f| plist = f.read }
+	def self.go(subcmd, opts, &block)
+		opts = opts.map { |x| x.to_s }
+		block.([Command, subcmd, *opts])
 		raise 'hdiutil failure' unless $?.success?
-		return Plist::parse_xml(plist)
+	end
+	
+	def self.run(subcmd, *opts); go(subcmd, opts) { |c| system(*c) }; end
+	def self.plist(subcmd, *opts)
+		pl = nil
+		go(subcmd, opts) do |c|
+			IO.popen(c) { |f| pl = f.read }
+		end
+		return Plist::parse_xml(pl)
 	end
 	
 	def self.detach(dev); run('detach', dev); end
-	def self.compact(img); run('compact', '-plist', img); end
+	def self.compact(img); run('compact', img); end
 	
 	def self.attach(img, &block)
-		plist = run('attach', '-plist', '-nomount', img)
-		dev = plist['system-entities'].map { |e| e['dev-entry'] }.min
+		pl = plist('attach', '-plist', '-nomount', img)
+		dev = pl['system-entities'].map { |e| e['dev-entry'] }.min
 		if block
 			block[dev]
 			detach(dev)
@@ -26,8 +34,8 @@ class Hdiutil
 	
 	def self.create(file, *args)
 		tmp = Dir::Tmpname.create('', File.dirname(file)) { }
-		plist = run('create', *args, tmp)
-		File.rename(plist.first, file)
+		pl = plist('create', *args, tmp)
+		File.rename(pl.first, file)
 	end
 	
 end

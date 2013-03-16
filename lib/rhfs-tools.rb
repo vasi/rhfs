@@ -53,8 +53,8 @@ class RHFS
 		args = %w{-plist -type SPARSEBUNDLE -fs HFS+}
 		args << '-size' << size
 		args << '-imagekey' << "sparse-band-size=#{band_sectors}"
-		args.concat(%{-layout SPUD}) if partitioned
-		Hdiutil.create(file, *args)
+		args << '-layout' << (partitioned ? 'SPUD' : 'NONE')
+		Hdiutil.create(path, *args)
 	end
 	
 	def self.unwrap(buf)
