@@ -40,7 +40,7 @@ class Buffer
 		take = [size - pos, 0].max
 		take = len if len && len < take
 		ret = pread(pos, take)
-		@pos += ret.size
+		@pos += ret.bytesize
 		return ret
 	end
 	
@@ -70,23 +70,23 @@ class SubBuffer < Buffer
 	def initialize(base, off, size = nil, &block)
 		super()
 		@base, @off = base, off
-		@size = size || (base.size - off)
+		@size = size
 		with(&block)
 	end
-	attr_reader :size
-	def pread(off, size); @base.pread(@off + off, size); end
+	def size; @size || (@base.size - @off); end
+	def pread(off, len); @base.pread(@off + off, len); end
 	def pwrite(off, buf); @base.pwrite(@off + off, buf); end
 end
 
 class IOBuffer < Buffer
 	DefaultSize = 2**64
 	
-	def initialize(io, size = nil, &block)
+	def initialize(io, size = nil, rw = true, &block)
 		super()
 		if io.respond_to? :read
 			@io = io
 		else
-			@io = open(io, 'w+')
+			@io = open(io, rw ? 'a+' : 'r')
 		end
 		
 		# Could use ioctls (eg: DKIOCGETBLOCKCOUNT), but too much trouble
@@ -101,6 +101,10 @@ class IOBuffer < Buffer
 	
 	attr_reader :size
 	def close; @io.close; end
-	def pread(off, size); IO.pread(@io.fileno, size, off); end
-	def pwrite(off, buf); IO.pwrite(@io.fileno, buf, off); end
+	def pread(off, len); IO.pread(@io.fileno, len, off); end
+	def pwrite(off, buf)
+		ret = IO.pwrite(@io.fileno, buf, off)
+		@size = [@size, off + ret].max
+		return ret
+	end
 end
