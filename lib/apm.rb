@@ -5,6 +5,8 @@ class BERecord < BinData::Record
 	endian :big
 end
 
+class MagicException < Exception; end
+
 # Apple Partition Map
 # See IOApplePartitionScheme.h
 class APM
@@ -64,7 +66,8 @@ class APM
 		return unless read
 		
 		@block0 = @buf.st_read(Block0, 0)
-		raise "Invalid APM header" unless block0.sig == Block0::Signature
+		raise MagicException.new("Invalid APM header") \
+			unless block0.sig == Block0::Signature
 		pmap = @buf.st_read(Entry, blkSize)
 		@partitions = (1..pmap.map_entries).map do |i|
 			p = @buf.st_read(Entry, i * blkSize)

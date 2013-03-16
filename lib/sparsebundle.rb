@@ -77,10 +77,7 @@ class Sparsebundle < Buffer
 		band_count = @size / @band_size
 		@bands = [nil] * band_count
 		
-		if block
-			block.(self)
-			close
-		end
+		with(&block)
 	end
 
 	def self.create(path, size, band_size = DefaultBandSize, &block)

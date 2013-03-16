@@ -59,16 +59,19 @@ class RHFS
 	
 	def self.unwrap(buf)
 		# Make sure we have a valid disk
-		apm = APM.new(buf)
-		idxs = apm.partitions.each_with_index.
+		begin
+			apm = APM.new(buf)
+			idxs = apm.partitions.each_with_index.
 			select { |p,i| p.type == APM::TypeHFS }
-		raise "Need exactly one HFS partition" unless idxs.count == 1
+			return false unless idxs.count == 1
 		
-		idx = idxs[0][1]
-		part = apm.partitions[idx]
-		hfs = HFS.new(apm.partition(idx))
-		raise "Not a wrapped HFS+ partition" \
-			unless hfs.mdb.embedSigWord == HFS::MDB::EmbedSignature
+			idx = idxs[0][1]
+			part = apm.partitions[idx]
+			hfs = HFS.new(apm.partition(idx))
+		rescue MagicException
+			return false
+		end
+		return false unless hfs.mdb.embedSigWord == HFS::MDB::EmbedSignature
 		
 		# Calculate the sizes of the new partitions
 		bsize = apm.block0.blkSize
@@ -96,6 +99,8 @@ class RHFS
 		end
 		apm.partitions[idx, 1] = repl
 		apm.write
+		
+		return true
 	end
 	
 	def self.rewrap(buf)
@@ -119,40 +124,12 @@ class RHFS
 	end
 	
 	def self.compact(path)
-		sb = Sparsebundle.new(path)
-		whole = HFS.identify(sb)
-		if whole == :HFSPlus || whole == :HFSX
-			sb.close
-			Hdiutil.compact(path)
-			return
-		else
-			raise "Can't compact whole-disk HFS or wrapped HFS+"
-		end
+		# See if we can apply unwrapping
+		wr = false
+		Sparsebundle.new(path) { |sb| wr = unwrap(sb) }
 		
-		# Try partitions
-		apm = APM.new(sb)
-		hfs = apm.partitions.each_with_index.
-			select { |p,i| p.type == APM::TypeHFS }.
-			map { |p, i| { :part => p, :index => i,
-				:type => HFS.identify(apm.partition(i)) } }
-		plus = hfs.find { |p| p[:type] != :HFS }
-		
-		# HFS+ is present
-		if plus
-			raise "Can't compact multiple partitions with HFS+" \
-				if hfs.count != 1
-			wrapper = (plus[:type] == :HFSWrapper) 
-			unwrap(sb) if wrapper
-			sb.close
-			Hdiutil.compact(path)
-			if wrapper
-				sb = Sparsebundle.new(path)
-				rewrap(sb)
-			end
-		else
-			# Only HFS
-			raise "Can't yet compact plain HFS"
-		end
+		Hdiutil.compact(path)
+		Sparsebundle.new(path) { |sb| rewrap(sb) } if wr
 	end
 end
 

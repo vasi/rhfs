@@ -17,7 +17,7 @@ class Buffer
 	
 	def with(&block)
 		if block
-			block.(self)
+			r = block.(self)
 			close
 		end
 	end

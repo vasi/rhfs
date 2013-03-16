@@ -29,7 +29,8 @@ class HFS
 	def initialize(buf)
 		@buf = buf
 		@mdb = @buf.st_read(MDB, MDBOffset)
-		raise "Invalid HFS partition" unless mdb.sigWord == MDB::Signature
+		raise MagicException.new("Invalid HFS partition") \
+			unless mdb.sigWord == MDB::Signature
 	end
 	
 	def write_mdb
