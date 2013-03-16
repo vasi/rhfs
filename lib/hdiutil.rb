@@ -12,7 +12,7 @@ class Hdiutil
 	end
 	
 	def self.detach(dev); run('detach', dev); end
-	def self.compact(img); run('compact', img); end
+	def self.compact(img); run('compact', '-plist', img); end
 	
 	def self.attach(img, &block)
 		plist = run('attach', '-plist', '-nomount', img)

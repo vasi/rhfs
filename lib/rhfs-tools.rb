@@ -127,7 +127,24 @@ class RHFS
 			select { |p,i| p.type == APM::TypeHFS }.
 			map { |p, i| { :part => p, :index => i,
 				:type => HFS.identify(apm.partition(i)) } }
-		p hfs
+		plus = hfs.find { |p| p[:type] != :HFS }
+		
+		# HFS+ is present
+		if plus
+			raise "Can't compact multiple partitions with HFS+" \
+				if hfs.count != 1
+			wrapper = (plus[:type] == :HFSWrapper) 
+			unwrap(sb) if wrapper
+			sb.close
+			Hdiutil.compact(path)
+			if wrapper
+				sb = Sparsebundle.new(path)
+				rewrap(sb)
+			end
+		else
+			# Only HFS
+			raise "Can't yet compact plain HFS"
+		end
 	end
 end
 
@@ -141,5 +158,12 @@ class RHFSCommands
 		band_size = RHFS.size(opts[:band])
 		method = opts[:format] ? :create_hdiutil : :create_native
 		RHFS.send(method, path, !opts[:whole], size, band_size)
+	end
+	
+	def self.compact(opts, *args)
+		raise Trollop::CommandlineError.new("Bad number of arguments") \
+			unless args.size == 1
+		path, = *args
+		RHFS.compact(path)
 	end
 end

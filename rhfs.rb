@@ -36,6 +36,7 @@ subcommands = [
 		opt :band, "Size of each band of the image", :type => :string,
 			:default => Sparsebundle::DefaultBandSize.to_s
 	end,
+	Subcommand.new(:compact, "PATH", "Shrink a sparsebundle") { }
 ]
 
 global_parser = Trollop::Parser.new do	
@@ -53,14 +54,11 @@ end
 
 sub = nil
 Trollop.with_standard_exception_handling global_parser do
-	begin
-		opts = global_parser.parse ARGV
-		cmd = ARGV.shift or raise Trollop::HelpNeeded
-		sub = subcommands.find { |s| s.name.to_s == cmd } \
-			or raise Trollop::CommandlineError.new("unknown subcommand #{cmd.inspect}")
-	rescue Trollop::HelpNeeded
-		global_parser.educate
-	end
+	opts = global_parser.parse ARGV
+	cmd = ARGV.shift or raise Trollop::HelpNeeded
+	sub = subcommands.find { |s| s.name.to_s == cmd } \
+		or raise Trollop::CommandlineError.new(
+			"unknown subcommand #{cmd.inspect}")
 end
 
 Trollop.with_standard_exception_handling sub.parser do
