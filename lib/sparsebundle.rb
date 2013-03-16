@@ -5,6 +5,7 @@ require 'fcntl'
 require 'fileutils'
 
 require_relative 'buffer'
+require_relative 'utils'
 
 class Sparsebundle < Buffer
 	class Band < Buffer
@@ -58,7 +59,8 @@ class Sparsebundle < Buffer
 	PathLock = "token"
 	
 	Sector = 512
-	DefaultBandSize = 8 * 1024 * 1024
+	DefaultBandSizeOpt = "8m"
+	DefaultBandSize = RHFS.size(DefaultBandSizeOpt)
 	
 	
 	def initialize(path, rw = true, &block)

@@ -11,8 +11,15 @@ class HFS
 	MDBOffset = ReservedSectors * Sector
 	class MDB < BERecord
 		Signature = 'BD'
+		AtrbUnmounted = 1 << 8
+		
 		string	:sigWord, :length => 2
-		string	:ignore_1, :length => 16
+		uint32	:crDate
+		uint32	:lsMod
+		uint16	:atrb
+		uint16	:nmFls
+		uint16	:vbmSt
+		uint16	:allocPtr
 		uint16	:nmAlBlks
 		uint32	:alBlkSiz
 		uint32	:clpSiz

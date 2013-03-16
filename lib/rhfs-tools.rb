@@ -4,22 +4,10 @@ require_relative 'apm'
 require_relative 'hfs'
 require_relative 'hdiutil'
 require_relative 'sparsebundle'
+require_relative 'utils'
 
 class RHFS
 	TypeUnwrapped = 'RHFS_Unwrap'
-	
-	# Allow suffixes for MB, g, etc
-	def self.size(s)
-		suffixes = %w[k m g t]
-		md = s.match(/^(\d+)(\D)?b?$/i) or raise "Unknown size #{s.inspect}"
-		v = md[1].to_i
-		if md[2]
-			i = suffixes.find_index(md[2].downcase) \
-				or raise "Unknown suffix #{md[2]}"
-			v *= 1024 ** (i + 1)
-		end
-		return v
-	end
 	
 	def self.create_native(path, partitioned, size, band_size)
 		sb = Sparsebundle.create_approx(path, size, band_size)
@@ -57,79 +45,31 @@ class RHFS
 		Hdiutil.create(path, *args)
 	end
 	
-	def self.unwrap(buf)
-		# Make sure we have a valid disk
-		begin
-			apm = APM.new(buf)
-			idxs = apm.partitions.each_with_index.
-			select { |p,i| p.type == APM::TypeHFS }
-			return false unless idxs.count == 1
+	def self.compact_prep_vol(buf)
+		return unless HFS.identify(buf) == :HFSWrapper
 		
-			idx = idxs[0][1]
-			part = apm.partitions[idx]
-			hfs = HFS.new(apm.partition(idx))
-		rescue MagicException
-			return false
-		end
-		return false unless hfs.mdb.embedSigWord == HFS::MDB::EmbedSignature
-		
-		# Calculate the sizes of the new partitions
-		bsize = apm.block0.blkSize
-		pre_size_bytes = (hfs.mdb.alBlSt * HFS::Sector) +
-			(hfs.mdb.embedStartBlock * hfs.mdb.alBlkSiz)		
-		
-		pre_size = pre_size_bytes / bsize
-		wrap_size = hfs.mdb.embedBlockCount * hfs.mdb.alBlkSiz / bsize
-		post_size = part.pblocks - pre_size - wrap_size
-		sizes = [pre_size, wrap_size, post_size]
-		
-		# Build the new partitions
-		start = part.pblock_start
-		repl = sizes.each_with_index.map do |sz, i|
-			pt = APM::Entry.new(part)
-			pt.pblock_start = start
-			pt.pblocks = sz
-			pt.lblocks_start = pt.lblocks = 0
-			if i % 2 == 0 # wrapper part
-				pt.type = TypeUnwrapped
-				pt.set_flags(*%w[Valid Allocated])
-			end
-			start += sz
-			pt
-		end
-		apm.partitions[idx, 1] = repl
-		apm.write
-		
-		return true
-	end
-	
-	def self.rewrap(buf)
-		# Make sure we have a valid disk
-		apm = APM.new(buf)
-		ws = apm.partitions.each_with_index.
-			select { |p,i| p.type == TypeUnwrapped }
-		raise "Need exactly two wrap partitions" unless ws.count == 2
-		w1, wi1, w2, wi2 = *ws.flatten
-		raise "Wrap partitions must surround a partition" unless wi2 - wi1 == 2
-		h = apm.partitions[wi1 + 1]
-		raise "There must be a HFS partition to unwrap" \
-			unless h.type == APM::TypeHFS
-		
-		# Build the original partition
-		r = APM::Entry.new(h)
-		r.pblock_start = w1.pblock_start
-		r.pblocks = w1.pblocks + h.pblocks + w2.pblocks
-		apm.partitions[wi1, 3] = [r]
-		apm.write
+		# Add the flag whose absence gives hdiutil trouble
+		hfs = HFS.new(buf)
+		hfs.mdb.atrb |= HFS::MDB::AtrbUnmounted
+		hfs.write_mdb
 	end
 	
 	def self.compact(path)
-		# See if we can apply unwrapping
-		wr = false
-		Sparsebundle.new(path) { |sb| wr = unwrap(sb) }
+		# Fixup hdiutil breakage
+		Sparsebundle.new(path) do |sb|
+			compact_prep_vol(sb)
+			begin
+				apm = APM.new(sb)
+			rescue MagicException
+				break
+			end
+			apm.count.times do |i|
+				next unless apm.partitions[i].type == APM::TypeHFS
+				compact_prep_vol(apm.partition(i))
+			end
+		end
 		
 		Hdiutil.compact(path)
-		Sparsebundle.new(path) { |sb| rewrap(sb) } if wr
 	end
 end
 
@@ -142,7 +82,7 @@ class RHFSCommands
 		size = RHFS.size(size)
 		band_size = RHFS.size(opts[:band])
 		method = opts[:format] ? :create_hdiutil : :create_native
-		RHFS.send(method, path, !opts[:whole], size, band_size)
+		RHFS.send(method, path, opts[:partition], size, band_size)
 	end
 	
 	def self.compact(opts, *args)

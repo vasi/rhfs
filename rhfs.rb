@@ -31,10 +31,10 @@ end
 subcommands = [
 	Subcommand.new(:create, "SIZE PATH",
 			"Create a new sparsebundle disk image") do
-		opt :whole, "Don't use a partition table"
+		opt :partition, "Use a partition table"
 		opt :format, "Include a valid HFS+ filesystem (Mac only)"
 		opt :band, "Size of each band of the image", :type => :string,
-			:default => Sparsebundle::DefaultBandSize.to_s
+			:default => "8m"
 	end,
 	Subcommand.new(:compact, "PATH", "Shrink a sparsebundle") { }
 ]
