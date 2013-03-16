@@ -117,6 +117,18 @@ class RHFS
 		apm.partitions[wi1, 3] = [r]
 		apm.write
 	end
+	
+	def self.compact(path)
+		sb = Sparsebundle.new(path)
+		apm = APM.new(sb)
+		
+		# Find a strategy
+		hfs = apm.partitions.each_with_index.
+			select { |p,i| p.type == APM::TypeHFS }.
+			map { |p, i| { :part => p, :index => i,
+				:type => HFS.identify(apm.partition(i)) } }
+		p hfs
+	end
 end
 
 class RHFSCommands

@@ -10,6 +10,7 @@ class HFS
 	ReservedSectors = 2
 	MDBOffset = ReservedSectors * Sector
 	class MDB < BERecord
+		Signature = 'BD'
 		string	:sigWord, :length => 2
 		string	:ignore_1, :length => 16
 		uint16	:nmAlBlks
@@ -28,10 +29,23 @@ class HFS
 	def initialize(buf)
 		@buf = buf
 		@mdb = @buf.st_read(MDB, MDBOffset)
-		raise "Invalid HFS partition" unless mdb.sigWord == 'BD'
+		raise "Invalid HFS partition" unless mdb.sigWord == MDB::Signature
 	end
 	
 	def write_mdb
 		@buf.st_write(mdb, MDBOffset)
+	end
+	
+	def self.identify(buf)
+		sigt = BinData::String.new(:length => 2)
+		sig = buf.st_read(sigt, MDBOffset)
+		case sig
+		when MDB::Signature
+			mdb = buf.st_read(MDB, MDBOffset)
+			return mdb.embedSigWord == MDB::EmbedSignature ? :HFSWrapper : :HFS
+		when 'H+'; return :HFSPlus
+		when 'HX'; return :HFSX
+		else; return nil
+		end
 	end
 end

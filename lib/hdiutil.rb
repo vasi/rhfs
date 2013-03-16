@@ -11,9 +11,8 @@ class Hdiutil
 		return Plist::parse_xml(plist)
 	end
 	
-	def self.detach(dev)
-		run('detach', dev)
-	end
+	def self.detach(dev); run('detach', dev); end
+	def self.compact(img); run('compact', img); end
 	
 	def self.attach(img, &block)
 		plist = run('attach', '-plist', '-nomount', img)
@@ -30,4 +29,5 @@ class Hdiutil
 		plist = run('create', *args, tmp)
 		File.rename(plist.first, file)
 	end
+	
 end
