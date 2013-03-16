@@ -135,7 +135,7 @@ class Sparsebundle < Buffer
 	end
 
 	def close
-		close(@lock) if @lock
+		@lock.close if @lock
 		@bands.each { |b| b.close if b }
 	end
 	

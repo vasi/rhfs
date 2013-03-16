@@ -44,6 +44,7 @@ class RHFS
 		
 		apm.partitions = [pmap, hfs]
 		apm.write
+		sb.close
 	end
 	
 	def self.create_hdiutil(path, partitioned, size, band_size)
@@ -53,6 +54,10 @@ class RHFS
 		args << '-imagekey' << "sparse-band-size=#{band_sectors}"
 		args.concat(%{-layout SPUD}) if partitioned
 		Hdiutil.create(file, *args)
+	end
+	
+	def self.unwrap(buf)
+		
 	end
 end
 
