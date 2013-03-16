@@ -3,7 +3,11 @@ require 'tmpdir'
 require_relative 'hfs'
 require_relative 'hdiutil'
 
-class Ops
+class RHFS
+	
+end
+
+class RHFSCommands
 	# Corrupt an HFS partition, so MacOS offers to format it
 	def self.seed(opts, file)
 		if opts[:create]

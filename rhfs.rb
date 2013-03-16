@@ -1,5 +1,5 @@
 #!/usr/bin/env rvm 2.0 do ruby
-require_relative 'lib/ops'
+require_relative 'lib/rhfs-tools'
 
 require 'rubygems'
 require 'trollop'
@@ -11,7 +11,7 @@ def xbanner(name, usage, desc, extra = nil)
 	return <<-EOS
 #{desc}
 
-Usage: ss-hfs #{name} [options]#{usage}
+Usage: rhfs #{name} [options]#{usage}
 
 #{extra}Options:
 EOS
@@ -46,7 +46,7 @@ global_parser = Trollop::Parser.new do
 		'Manipulate disk images for use with SheepShaver and BasiliskII',
 		extra)
 	
-	version "ss-hfs 0.1 (c) 2013 Dave Vasilevsky"
+	version "rhfs 0.1 (c) 2013 Dave Vasilevsky"
 	stop_on subcommands.map { |s| s.name.to_s }
 end
 
