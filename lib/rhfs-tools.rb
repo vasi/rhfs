@@ -120,9 +120,17 @@ class RHFS
 	
 	def self.compact(path)
 		sb = Sparsebundle.new(path)
-		apm = APM.new(sb)
+		whole = HFS.identify(sb)
+		if whole == :HFSPlus || whole == :HFSX
+			sb.close
+			Hdiutil.compact(path)
+			return
+		else
+			raise "Can't compact whole-disk HFS or wrapped HFS+"
+		end
 		
-		# Find a strategy
+		# Try partitions
+		apm = APM.new(sb)
 		hfs = apm.partitions.each_with_index.
 			select { |p,i| p.type == APM::TypeHFS }.
 			map { |p, i| { :part => p, :index => i,
