@@ -1,10 +1,37 @@
 require 'tmpdir'
 
+require_relative 'apm'
 require_relative 'hfs'
 require_relative 'hdiutil'
+require_relative 'sparsebundle'
 
 class RHFS
-	
+	def self.seed_native(path, partitioned, size, band_size)
+		sb = Sparsebundle.create(path, size, band_size)
+		return unless partitioned
+		
+		apm = APM.create(sb)
+		bsize = apm.block0.blkSize
+		
+		start = 1
+		pmap = APM::Entry.new(
+			:type => APM::TypePMAP,
+			:pblock_start => start,
+			:pblocks => APM::DefaultEntries,
+		)
+		
+		start += APM::DefaultEntries
+		hfs = APM::Entry.new(
+			:type => APM::TypeHFS,
+			:pblock_start => start,
+			:pblocks => (size / bsize) - start,
+			:flags => %w[Valid Allocated Readable Writable].
+				reduce(0) { |a, f| a | APM::Entry.const_get(f) } 
+		)
+		
+		apm.partitions = [pmap, hfs]
+		apm.write
+	end
 end
 
 class RHFSCommands

@@ -83,6 +83,7 @@ class Sparsebundle < Buffer
 	end
 
 	def self.create(path, size, band_size = DefaultBandSize, &block)
+		# FIXME: verify sizes are ok?
 		plist = PlistRequired.merge({
 			KeyVersion => ValueVersion,
 			KeySize => size,

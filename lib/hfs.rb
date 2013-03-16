@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bindata'
 
-require_relative 'apm.rb'
+require_relative 'apm'
 
 # Apple's HFS file system (not HFS+)
 # See hfs_format.h
@@ -30,7 +30,7 @@ class HFS
 		raise "Invalid HFS partition" unless mdb.sigWord == 'BD'
 	end
 	
-	def write
+	def write_mdb
 		@buf.st_write(mdb, MDBOffset)
 	end
 end
