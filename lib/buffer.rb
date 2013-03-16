@@ -1,3 +1,8 @@
+require 'rubygems'
+require 'io/extra'
+
+# This lets us have multiple sub-buffers based on the same file, with different
+# position pointers.
 class Buffer
 	# Basic operations
 	def close; end
@@ -5,11 +10,11 @@ class Buffer
 	def pread(off, size); end
 	def pwrite(off, buf); end
 	
-	# Implement required IO operations for BinData::IO
-	attr_reader :pos
-	def initialize(&block)
+	# Initialization
+	def initialize
 		@pos = 0
 	end
+	
 	def with(&block)
 		if block
 			block.(self)
@@ -19,22 +24,20 @@ class Buffer
 	
 	def eof?; @pos >= size; end
 	
+	# Implement required IO operations for BinData::IO
+	attr_reader :pos
+	
 	def seek(off, whence = IO::SEEK_SET)
 		case whence
 			when IO::SEEK_SET; @pos = off
 			when IO::SEEK_CUR; @pos += off
 			when IO::SEEK_END; @pos = size + off
 		end
-		return pos
+		return @pos
 	end
 	
 	def read(len = nil)
-		if eof?
-			return "" if len.nil? || len.zero?
-			return nil
-		end
-		
-		take = size - pos
+		take = [size - pos, 0].max
 		take = len if len && len < take
 		ret = pread(pos, take)
 		@pos += ret.size
@@ -75,17 +78,20 @@ class SubBuffer < Buffer
 	def pwrite(off, buf); @base.pwrite(@off + off, buf); end
 end
 
-class FileBuffer < Buffer
-	def initialize(file, size = nil, &block)
+class IOBuffer < Buffer
+	DefaultSize = 2**64
+	
+	def initialize(io, size = nil, &block)
 		super()
-		if file.respond_to? :read
-			@io = file
+		if io.respond_to? :read
+			@io = io
 		else
-			@io = open(file, 'w+')
+			@io = open(io, 'w+')
 		end
 		
 		# Could use ioctls (eg: DKIOCGETBLOCKCOUNT), but too much trouble
-		@size = size || find_size || 2**64
+		@size = size || find_size || DefaultSize
+		with(&block)
 	end
 	
 	def find_size
@@ -93,10 +99,8 @@ class FileBuffer < Buffer
 		@io.pos.zero? ? nil : @io.pos
 	end
 	
-	def io_seek(pos = nil); @io.seek(pos || @pos); end
-	
 	attr_reader :size
 	def close; @io.close; end
-	def pread(off, size); io_seek; @io.read(size); end
-	def pwrite(off, buf); io_seek; @io.write(buf); end
+	def pread(off, size); IO.pread(@io.fileno, size, off); end
+	def pwrite(off, buf); IO.pwrite(@io.fileno, buf, off); end
 end
