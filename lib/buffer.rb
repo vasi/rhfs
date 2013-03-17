@@ -89,17 +89,23 @@ class IOBuffer < Buffer
 			@io = open(io, rw ? 'a+' : 'r')
 		end
 		
-		@size = size || find_size || DefaultSize
+		@size_spec = size
+		find_size
 		with(&block)
 	end
 	
 	def find_size
-		# Could use ioctls (eg: DKIOCGETBLOCKCOUNT) on devices,
-		# but too much trouble
-		return nil unless File.file?(@io)
-		
-		@io.seek(0, IO::SEEK_END)
-		@io.pos
+		if @size_spec
+			@size = @size_spec
+			return
+		elsif File.file?(@io)
+			@io.seek(0, IO::SEEK_END)
+			@size = @io.pos
+		else
+			# Could use ioctls (eg: DKIOCGETBLOCKCOUNT) on devices,
+			# but too much trouble
+			@size = DefaultSize
+		end
 	end
 	
 	attr_reader :size
@@ -109,5 +115,10 @@ class IOBuffer < Buffer
 		ret = IO.pwrite(@io.fileno, buf, off)
 		@size = [@size, off + ret].max
 		return ret
+	end
+	
+	def truncate(len)
+		@io.truncate(len)
+		find_size
 	end
 end

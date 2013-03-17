@@ -42,6 +42,17 @@ class Sparsebundle < Buffer
 			return len if ret == want
 			return ret
 		end
+		
+		def truncate(len)
+			open
+			return if len >= alloc
+			if len == 0
+				File.unlink(@path)
+				@io = nil
+			else
+				@io.truncate(len)
+			end
+		end
 	end
 	
 	
@@ -162,6 +173,15 @@ class Sparsebundle < Buffer
 		end
 	end
 	
+	def compact(alloc)
+		0.upto(@bands.count - 1) do |idx|
+			b = band(idx)
+			off = idx * @band_size
+			len = b.size
+			range = alloc.allocated_range(off, len)
+			b.truncate(range) if range != len
+		end
+	end
 	
 	attr_reader :size
 	def pread(off, len)
