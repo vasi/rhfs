@@ -17,7 +17,7 @@ class Sparsebundle < Buffer
 		end
 		def alloc; @io && @io.size; end
 		def open; @io ||= IOBuffer.new(@path, @rw); end
-		def close; @io.close if @io; end
+		def close; @io.close if @io; @io = nil; end
 				
 		def pread(off, len)
 			want = [len, @size - off].min
@@ -48,10 +48,17 @@ class Sparsebundle < Buffer
 			return if len >= alloc
 			if len == 0
 				File.unlink(@path)
-				@io = nil
+				close
 			else
 				@io.truncate(len)
 			end
+		end
+		
+		def compact
+			open
+			zeroes = pread(0, alloc).bytes.reverse.find_index { |b| !b.zero? }
+			len = alloc - (zeroes || alloc)
+			truncate(len)
 		end
 	end
 	
@@ -173,13 +180,18 @@ class Sparsebundle < Buffer
 		end
 	end
 	
-	def compact(alloc)
+	def compact(alloc = nil)
+		# FIXME: limited buffer???
 		0.upto(@bands.count - 1) do |idx|
 			b = band(idx)
 			off = idx * @band_size
 			len = b.size
-			range = alloc.allocated_range(off, len)
-			b.truncate(range) if range != len
+			if alloc
+				range = alloc.allocated_range(off, len)
+				b.truncate(range) if range != len
+			else
+				b.compact
+			end
 		end
 	end
 	

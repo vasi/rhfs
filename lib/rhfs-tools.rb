@@ -75,7 +75,6 @@ end
 
 class RHFSCommands
 	def self.create(opts, *args)
-		# FIXME: test different args
 		raise Trollop::CommandlineError.new("Bad number of arguments") \
 			unless args.size == 2
 		size, path = *args
