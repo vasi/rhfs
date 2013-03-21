@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bindata'
 
-require_relative 'apm'
+require_relative 'structs'
 require_relative 'compact'
 
 # Apple's HFS file system (not HFS+)

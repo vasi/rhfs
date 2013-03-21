@@ -1,11 +1,7 @@
 require 'rubygems'
 require 'bindata'
 
-class BERecord < BinData::Record
-	endian :big
-end
-
-class MagicException < Exception; end
+require_relative 'structs'
 
 # Apple Partition Map
 # See IOApplePartitionScheme.h
