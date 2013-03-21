@@ -21,7 +21,7 @@ class Sparsebundle < Buffer
 				
 		def pread(off, len)
 			want = [len, @size - off].min
-			return "\0" * want unless @io
+			return "\0" * want if alloc < off
 			avail = [want, alloc - off].min
 			return @io.pread(off, avail) + "\0" * (want - avail)
 		end
