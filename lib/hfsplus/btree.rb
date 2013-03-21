@@ -93,6 +93,19 @@ class BTree
 			i, r = find_in_node(k)
 			return self, i, r
 		end
+		
+		def each_leaf(i, &block)
+			n = self
+			loop do
+				block[n.record(i)]
+				i += 1
+				next if i < count
+				
+				break if n.desc.fLink == 0
+				n = @tree.node(n.desc.fLink)
+				i = 0
+			end
+		end
 	end
 	
 	
@@ -183,7 +196,13 @@ class ExtentsOverflow < BTree
 	
 	def key(buf); Key.read(buf); end
 	def recdata(buf)
-		buf.st_read(BinData::Array(:type => :extentDesc, :initial_length => 8))
+		buf.st_read(BinData::Array.new(
+			:type => :extentDesc, :initial_length => 8))
+	end
+	
+	def each_record(cnid, alloc, fork = DataFork, &block)
+		n, i, _ = root.find_detailed(Key.new(fork, cnid, alloc))
+		n.each_leaf(i, &block)
 	end
 end
 end

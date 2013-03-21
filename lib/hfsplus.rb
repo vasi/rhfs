@@ -20,20 +20,29 @@ class HFSPlus
 	class Fork < Buffer
 		def initialize(hfsplus, cnid, type, fork_data)
 			@fs, @cnid, @type, @fd = hfsplus, cnid, type, fork_data
+			@inline = @fd.extents.map { |e| e.blockCount }.reduce(:+)
 		end
 		def size; @fd.logicalSize; end
 		
+		def extent_group(alloc, &block)
+			block.(0, @fd.extents) if alloc < @inline
+			target = [alloc, @inline].max
+			@fs.extents_overflow.each_record(@cnid, target, @type) do |r|
+				block.(r.key.block, r.data)
+			end
+		end
+		
 		def bandlist(off, &block)
 			b = off / @fs.asize
-			start = 0
-			@fd.extents.each do |e|
-				if b < start + e.blockCount
-					ee = Extent.new(@fs, e)
-					block.(ee, start * @fs.asize)
+			extent_group(b) do |start, exts|
+				exts.each do |e|
+					if b < start + e.blockCount
+						ee = Extent.new(@fs, e)
+						block.(ee, start * @fs.asize)
+					end
+					start += e.blockCount
 				end
-				start += e.blockCount
 			end
-			raise "FIXME: Implement extent overflows"
 		end
 		include BandedBuffer
 
@@ -52,7 +61,9 @@ class HFSPlus
 	def special(cnid, data)
 		Fork.new(self, cnid, DataFork, @header.send(data))
 	end
-	def extents_overflow; BTree.new(special(IDExtents, :extentsFile)); end
+	def extents_overflow
+		ExtentsOverflow.new(special(IDExtents, :extentsFile))
+	end
 	def catalog; Catalog.new(special(IDCatalog, :catalogFile)); end
 	
 	def path_fork(p, fork = DataFork)
