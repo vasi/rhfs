@@ -18,7 +18,7 @@ class APM
 	class Block0 < BERecord
 		Signature = 'ER'
 		string	:sig, :length => 2, :initial_value => Signature
-		uint16	:blkSize, :initial_value => 512
+		uint16	:blkSize, :initial_value => DefaultSector
 		uint32	:blkCount
 		# ignore the rest
 	end
@@ -78,7 +78,7 @@ class APM
 	
 	def self.create(buf)
 		sb = new(buf, DONT_READ)
-		sb.block0.blkCount = buf.size / DefaultSector
+		sb.block0.blkCount = buf.size / sb.block0.blkSize
 		return sb
 	end
 	

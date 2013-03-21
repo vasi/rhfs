@@ -1,4 +1,5 @@
 require 'rubygems'
+# FIXME: don't use io/extra
 require 'io/extra'
 
 # This lets us have multiple sub-buffers based on the same file, with different
