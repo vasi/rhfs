@@ -12,6 +12,27 @@ class HFSPlus
 	IDCatalog = 4
 	IDAllocation = 6
 	
+	class Point16 < BERecord
+		int16	:v
+		int16	:h
+	end
+	
+	class Rect16 < BERecord
+		int16	:top
+		int16	:left
+		int16	:bottom
+		int16	:right
+	end
+	
+	class UniStr < BERecord
+		uint16	:len, :value => lambda { :unicode.length / 2 }
+		string	:unicode, :read_length => lambda { len * 2 } # UTF-16
+		
+		Encoding = 'UTF-16BE'
+		def to_s; unicode.force_encoding(Encoding); end
+	end
+	
+	
 	class ExtentDesc < BERecord
 		uint32	:startBlock
 		uint32	:blockCount
@@ -95,8 +116,91 @@ class HFSPlus
 		end
 	end
 	
-	class UniStr < BERecord
-		uint16	:len, :value => lambda { :unicode.length / 2 }
-		string	:unicode, :read_length => lambda { len * 2 } # UTF-16
+	class Catalog < BTree
+		class KeyData < BERecord
+			uint32	:parentID
+			uniStr	:nodeName
+		end
+		
+		RecordFolder = 1
+		RecordFile = 2
+		RecordThreadFolder = 3
+		RecordThreadFile = 4
+		
+		class BSDInfo < BERecord
+			uint32	:ownerID
+			uint32	:groupID
+			uint8	:adminFlags
+			uint8	:ownerFlags
+			uint16	:fileMode
+			uint32	:special
+		end
+		class FolderInfo < BERecord
+			rect16	:windowBounds
+			uint16	:finderFlags
+			point16	:location
+			uint16	:reserved
+		end
+		class FileInfo < BERecord
+			string	:fileType, :length => 4
+			string	:fileCreator, :length => 4
+			uint16	:finderFlags
+			point16	:location
+			uint16	:reserved
+		end
+		class ExtFolderInfo < BERecord
+			point16	:scrollPosition
+			uint32	:dateAdded
+			uint16	:extFinderFlags
+			uint16	:reserved2
+			uint32	:putAwayFolderID
+		end
+		class ExtFileInfo < BERecord
+			uint32	:reserved1
+			uint32	:dateAdded
+			uint16	:extFinderFlags
+			uint16	:reserved2
+			uint32	:putAwayFolderID
+		end
+		
+		class Folder < BERecord
+			int16	:recordType
+			uint16	:flags
+			uint32	:valence
+			uint32	:folderID
+			uint32	:createDate
+			uint32	:modifyDate
+			uint32	:backupDate
+			bsdInfo	:permissions
+			folderInfo		:userInfo
+			extFolderInfo	:finderInfo
+			uint32	:textEncoding
+			uint32	:reserved
+		end
+		class File < BERecord
+			int16	:recordType
+			uint16	:flags
+			uint32	:reserved1
+			uint32	:fileID
+			uint32	:createDate
+			uint32	:contentModDate
+			uint32	:attributeModDate
+			uint32	:accessDate
+			uint32	:backupDate
+			bsdInfo	:permissions
+			fileInfo	:userInfo
+			extFileInfo	:finderInfo
+			uint32		:textEncoding
+			uint32		:reserved2
+			
+			forkData	:dataFork
+			forkData	:resourceFork
+		end
+		class Thread < BERecord
+			int16	:recordType
+			uint16	:reserved
+			uint32	:parentID
+			uniStr	:nodeName
+		end
 	end
 end

@@ -38,11 +38,7 @@ class BTree
 		def pretty_print_instance_variables; instance_variables - [:@buf]; end
 	end
 	class KeyedNode < Node
-		class Data
-			class KeyLength < BERecord
-				uint16	:len
-			end
-			
+		class Record
 			attr_reader :key
 			def initialize(node, buf)
 				@node, @buf = node, buf
@@ -53,16 +49,45 @@ class BTree
 			end
 			
 			def data; @node.recdata(@buf.sub(@doff)); end
+
+			def pretty_print_instance_variables
+				[:@key, :data]
+			end
 		end
 		
-		def record(i); Data.new(self, super); end
+		def record(i); Record.new(self, super); end
 		def key(b); @tree.key(b); end
+		
+		# Last index with a key <= k
+		def find_in_node(k)
+			idx = rec = nil
+			each_with_index do |r, i|
+				return idx, rec if r.key > k
+				idx, rec = i, r
+			end
+			return idx, rec
+		end
+		
+		def find(k)
+			n, i, r = find_detailed(k)
+			return (r && r.key == k) ? r : nil
+		end
 	end
 	class IndexNode < KeyedNode
 		def recdata(b); b.st_read(BinData::Uint32be); end
+		
+		def find_detailed(k)
+			i, r = find_in_node(k)
+			return self, nil, nil unless r
+			return @tree.node(r.data).find_detailed(k)
+		end
 	end
 	class LeafNode < KeyedNode
 		def recdata(b); @tree.recdata(b); end
+		def find_detailed(k)
+			i, r = find_in_node(k)
+			return self, i, r
+		end
 	end
 	
 	
@@ -81,35 +106,64 @@ class BTree
 
 	def node_size; @header.nodeSize; end
 	def node(i); Node.create(self, @buf.sub(i * node_size)); end
+	def root; node(header.rootNode); end
 	
 	def key(buf); buf.read; end
 	def recdata(buf); buf.read; end
+	
+	def find(k); root.find(k); end
 end
 
 class Catalog < BTree
-	class CatalogKey < Struct.new(:parentID, :nodeName)
-		class Data < BERecord
-			uint32	:parentID
-			uniStr	:nodeName
+	class Key
+		attr_reader :parent, :name
+		def initialize(parent, name)
+			@parent = parent
+			@name = name.encode(HFSPlus::UniStr::Encoding)
 		end
-		NameEncoding = 'UTF-16BE'
 		
 		def self.read(buf)
-			data = buf.st_read(Data)
-			new(data.parentID.to_i,
-				data.nodeName.unicode.to_s.force_encoding(NameEncoding))
-		end
-		
+			data = buf.st_read(KeyData)
+			new(data.parentID.to_i, data.nodeName.to_s)
+		end		
 		
 		def case_name
 			# FIXME: better case folding; check for HFSX
-			nodeName.downcase
+			name.downcase
 		end
 		
-		def cmp_key; [parentID, case_name]; end
+		def cmp_key; [parent, case_name]; end
 		def <=>(other); cmp_key <=> other.cmp_key; end
+		include Comparable
 	end
 	
-	def key(buf); CatalogKey.read(buf); end
+	def key(buf); Key.read(buf); end
+	def recdata(buf)
+		type = buf.st_read(BinData::Int16be)
+		klass = case type
+			when RecordFolder; Folder
+			when RecordFile; File
+			else; Thread
+		end
+		buf.st_read(klass)
+	end
+	
+	def path(p)
+		parts = p.split(%r{/})
+		
+		parent = IDRootFolder
+		data = nil
+		until parts.empty?
+			name = parts.shift
+			next if name.empty?
+			
+			rec = find(Key.new(parent, name)) or return nil
+			data = rec.data
+			return data if data.recordType == RecordFile
+			
+			parent = data.folderID
+		end
+		return data
+	end
 end
 end
