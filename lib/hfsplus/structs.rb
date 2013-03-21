@@ -15,8 +15,6 @@ class HFSPlus
 	class ExtentDesc < BERecord
 		uint32	:startBlock
 		uint32	:blockCount
-		
-		def endBlock; startBlock + blockCount; end
 	end
 	
 	class ForkData < BERecord
@@ -95,5 +93,10 @@ class HFSPlus
 			uint32	:attributes
 			array	:reserved3, :type => :uint32, :initial_length => 16
 		end
+	end
+	
+	class UniStr < BERecord
+		uint16	:len, :value => lambda { :unicode.length / 2 }
+		string	:unicode, :read_length => lambda { len * 2 } # UTF-16
 	end
 end

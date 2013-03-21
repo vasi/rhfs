@@ -27,7 +27,7 @@ class HFSPlus
 			b = off / @fs.asize
 			start = 0
 			@fd.extents.each do |e|
-				if b < e.endBlock
+				if b < start + e.blockCount
 					ee = Extent.new(@fs, e)
 					block.(ee, start * @fs.asize)
 				end
@@ -36,6 +36,8 @@ class HFSPlus
 			raise "FIXME: Implement extent overflows"
 		end
 		include BandedBuffer
+
+		def pretty_print_instance_variables; instance_variables - [:@fs]; end
 	end
 	
 	
@@ -50,5 +52,6 @@ class HFSPlus
 	def special(cnid, data)
 		Fork.new(self, cnid, DataFork, @header.send(data))
 	end
-	def extents_file; BTree.new(special(IDExtents, :extentsFile)); end
+	def extents_overflow; BTree.new(special(IDExtents, :extentsFile)); end
+	def catalog; Catalog.new(special(IDCatalog, :catalogFile)); end
 end
