@@ -127,13 +127,17 @@ class Catalog < BTree
 			new(data.parentID.to_i, data.nodeName.to_s)
 		end		
 		
-		def case_name
+		def cmp_name
 			# FIXME: better case folding; check for HFSX
-			name.downcase
+			name.downcase.each_char.reject { |c| c.ord == 0 }.join
 		end
 		
-		def cmp_key; [parent, case_name]; end
-		def <=>(other); cmp_key <=> other.cmp_key; end
+		def cmp_key; [parent, cmp_name]; end
+		def <=>(other)
+			ret = cmp_key <=> other.cmp_key
+			pp [ret, cmp_key, other.cmp_key]
+			ret
+		end
 		include Comparable
 	end
 	
