@@ -1,5 +1,3 @@
-require 'rubygems'
-
 # This lets us have multiple sub-buffers based on the same file, with different
 # position pointers.
 class Buffer
@@ -123,5 +121,41 @@ class IOBuffer < Buffer
 	def truncate(len)
 		@io.truncate(len)
 		find_size
+	end
+end
+
+module BandedBuffer
+	def bandify(off = 0, len = nil, &block)
+		len ||= size - off
+		
+		bandlist(off) do |b, band_off|
+			boff = off - band_off
+			bsize = b.size
+			blen = [len, bsize - boff].min
+			block.(b, boff, blen, band_off)			
+			off += blen
+			len -= blen
+			return if len == 0
+		end
+	end
+	
+	def pread(off, len)
+		ret = []
+		bandify(off, len) do |band, boff, blen, _|
+			r = band.pread(boff, blen)
+			ret << r
+			break unless r.bytesize == len
+		end
+		return ret.join
+	end
+		
+	def pwrite(off, buf)
+		ret = 0
+		bandify(off, buf.bytesize) do |band, boff, blen, _|
+			r = band.pwrite(boff, buf.byteslice(ret, blen))
+			ret += r
+			break unless r == blen
+		end
+		return ret
 	end
 end

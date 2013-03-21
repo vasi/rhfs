@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bindata'
 
-require_relative 'structs'
+require_relative '../structs'
 
 class HFSPlus
 	class ExtentDesc < BERecord

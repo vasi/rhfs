@@ -81,6 +81,7 @@ class Sparsebundle < Buffer
 	DefaultBandSize = RHFS.size(DefaultBandSizeOpt)
 	
 	
+	attr_reader :size
 	def initialize(path, rw = true, &block)
 		@path, @rw = path, rw
 		lock
@@ -164,51 +165,21 @@ class Sparsebundle < Buffer
 			Band.new(path, size, @rw)
 		end
 	end
-	
-	def bandify(off = 0, len = nil, &block)
-		len ||= size - off
-		idx = off / @band_size
-		while len > 0 && idx < @bands.count do
-			b = band(idx)
-			boff = off % @band_size
-			bsize = b.size
-			blen = [len, bsize - boff].min
-			block.(idx, b, boff, blen)
-			
-			off += blen
-			len -= blen
-			idx += 1
-		end
-	end
-	
+		
 	def compact(sizer, base = nil)
 		base ||= OpaqueSizer.new(size)
-		bandify do |bidx, band, _, _|
-			off = bidx * @band_size
-			band.compact(bidx * @band_size, sizer, base)
+		bandify do |band, _, _, band_off|
+			band.compact(band_off, sizer, base)
 		end
 	end
 	
-	attr_reader :size
-	def pread(off, len)
-		ret = []
-		bandify(off, len) do |_, band, boff, blen|
-			r = band.pread(boff, blen)
-			ret << r
-			break unless r.bytesize == len
+	
+	def bandlist(off, &block)
+		(off / @band_size).upto(@bands.count - 1) do |i|
+			block.(band(i), i * @band_size)
 		end
-		return ret.join
 	end
-		
-	def pwrite(off, buf)
-		ret = 0
-		bandify(off, buf.bytesize) do |_, band, boff, blen|
-			r = band.pwrite(boff, buf.byteslice(ret, blen))
-			ret += r
-			break unless r == blen
-		end
-		return ret
-	end
+	include BandedBuffer
 	
 	
 	def pretty_print_instance_variables
