@@ -4,9 +4,19 @@ require 'bindata'
 require_relative '../structs'
 
 class HFSPlus
+	DataFork = 0
+	ResourceFork = 0xff
+	
+	IDRootFolder = 2
+	IDExtents = 3
+	IDCatalog = 4
+	IDAllocation = 6
+	
 	class ExtentDesc < BERecord
 		uint32	:startBlock
 		uint32	:blockCount
+		
+		def endBlock; startBlock + blockCount; end
 	end
 	
 	class ForkData < BERecord
@@ -51,5 +61,39 @@ class HFSPlus
 		forkData	:attributesFile
 		forkData	:startupFile
 	end
-end
 	
+	
+	class BTree
+		NodeLeaf = -1
+		NodeIndex = 0
+		NodeHeader = 1
+		NodeMap = 2
+		
+		class NodeDesc < BERecord
+			uint32	:fLink
+			uint32	:bLink
+			int8	:kind
+			uint8	:height
+			uint16	:numRecords
+			uint16	:reserved
+		end
+		
+		class Header < BERecord
+			uint16	:treeDepth
+			uint32	:rootNode
+			uint32	:leafRecords
+			uint32	:firstLeafNode
+			uint32	:lastLeafNode
+			uint16	:nodeSize
+			uint16	:maxKeyLength
+			uint32	:totalNodes
+			uint32	:freeNodes
+			uint16	:reserved1
+			uint32	:clumpSize
+			uint8	:btreeType
+			uint8	:keyCompareType
+			uint32	:attributes
+			array	:reserved3, :type => :uint32, :initial_length => 16
+		end
+	end
+end
