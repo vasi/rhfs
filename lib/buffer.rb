@@ -1,6 +1,4 @@
 require 'rubygems'
-# FIXME: don't use io/extra
-require 'io/extra'
 
 # This lets us have multiple sub-buffers based on the same file, with different
 # position pointers.
@@ -111,9 +109,13 @@ class IOBuffer < Buffer
 	
 	attr_reader :size
 	def close; @io.close; end
-	def pread(off, len); IO.pread(@io.fileno, len, off); end
+	def pread(off, len)
+		@io.seek(off, IO::SEEK_SET)
+		@io.read(len)
+	end
 	def pwrite(off, buf)
-		ret = IO.pwrite(@io.fileno, buf, off)
+		@io.seek(off, IO::SEEK_SET)
+		ret = @io.write(buf)
 		@size = [@size, off + ret].max
 		return ret
 	end
