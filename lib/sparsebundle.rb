@@ -43,6 +43,14 @@ class Sparsebundle < Buffer
 			return ret
 		end
 		
+		def compact(off, sizer, base)
+			len = alloc
+			return if len == 0 # as small as it gets
+			
+			range = sizer.allocated_range(base, off, len)
+			truncate(range) if range < len
+		end
+		
 		def truncate(len)
 			return if len >= alloc
 			if len == 0
@@ -157,14 +165,15 @@ class Sparsebundle < Buffer
 		end
 	end
 	
-	def bandify(off, len, &block)
+	def bandify(off = 0, len = nil, &block)
+		len ||= size - off
 		idx = off / @band_size
 		while len > 0 && idx < @bands.count do
 			b = band(idx)
 			boff = off % @band_size
 			bsize = b.size
 			blen = [len, bsize - boff].min
-			block.(b, boff, blen)
+			block.(idx, b, boff, blen)
 			
 			off += blen
 			len -= blen
@@ -172,21 +181,18 @@ class Sparsebundle < Buffer
 		end
 	end
 	
-	def compact(sizer)
-		0.upto(@bands.count - 1) do |idx|
-			b = band(idx)
-			off = idx * @band_size
-			len = b.alloc
-			next if len == 0
-			range = sizer.allocated_range(nil, off, len)
-			b.truncate(range) if range < len
+	def compact(sizer, base = nil)
+		base ||= OpaqueSizer.new(size)
+		bandify do |bidx, band, _, _|
+			off = bidx * @band_size
+			band.compact(bidx * @band_size, sizer, base)
 		end
 	end
 	
 	attr_reader :size
 	def pread(off, len)
 		ret = []
-		bandify(off, len) do |band, boff, blen|
+		bandify(off, len) do |_, band, boff, blen|
 			r = band.pread(boff, blen)
 			ret << r
 			break unless r.bytesize == len
@@ -196,7 +202,7 @@ class Sparsebundle < Buffer
 		
 	def pwrite(off, buf)
 		ret = 0
-		bandify(off, buf.bytesize) do |band, boff, blen|
+		bandify(off, buf.bytesize) do |_, band, boff, blen|
 			r = band.pwrite(boff, buf.byteslice(ret, blen))
 			ret += r
 			break unless r == blen
