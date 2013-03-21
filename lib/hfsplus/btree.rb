@@ -3,10 +3,19 @@ require_relative 'structs'
 class HFSPlus
 class BTree
 	class Node
+		def self.create(tree, buf)
+			desc = buf.st_read(NodeDesc)
+			klass = case desc.kind
+				when NodeLeaf; LeafNode
+				when NodeIndex; IndexNode
+				else; Node
+			end
+			klass.new(tree, buf, desc)
+		end
+		
 		attr_reader :desc
-		def initialize(tree, buf)
-			@tree, @buf = tree, buf
-			@desc = @buf.st_read(NodeDesc)
+		def initialize(tree, buf, desc)
+			@tree, @buf, @desc = tree, buf, desc
 			
 			off_type = BinData::Array.new(:type => :uint16be,
 				:initial_length => @desc.numRecords + 1)
@@ -71,7 +80,7 @@ class BTree
 	def pretty_print_instance_variables; instance_variables - [:@buf]; end
 
 	def node_size; @header.nodeSize; end
-	def node(i, type = Node); type.new(self, @buf.sub(i * node_size)); end
+	def node(i); Node.create(self, @buf.sub(i * node_size)); end
 	
 	def key(buf); buf.read; end
 	def recdata(buf); buf.read; end
