@@ -2,18 +2,6 @@ require_relative 'structs'
 
 class HFSPlus
 class BTree
-	class Key
-		attr_reader :key
-		def initialize(tree, buf)
-			len = buf.st_read(BinData::Uint16be.new)
-			@len = len.to_i
-			@key = tree.key(buf.sub(len.num_bytes))
-		end
-		def <=>(other); key <=> other.key; end
-		include Comparable
-	end
-	
-	
 	class Node
 		attr_reader :desc
 		def initialize(tree, buf)
@@ -49,8 +37,8 @@ class BTree
 			attr_reader :key
 			def initialize(node, buf)
 				@node, @buf = node, buf
-				kleno = buf.st_read(KeyLength)
-				koff, klen = kleno.num_bytes, kleno.len
+				klen = buf.st_read(BinData::Uint16be)
+				koff = klen.num_bytes
 				@key = @node.key(buf.sub(koff, klen))
 				@doff = koff + klen + (klen % 2 == 0 ? 0 : 1)
 			end
@@ -61,7 +49,9 @@ class BTree
 		def record(i); Data.new(self, super); end
 		def key(b); @tree.key(b); end
 	end
-	# FIXME: add index
+	class IndexNode < KeyedNode
+		def recdata(b); b.st_read(BinData::Uint32be); end
+	end
 	class LeafNode < KeyedNode
 		def recdata(b); @tree.recdata(b); end
 	end
@@ -88,29 +78,29 @@ class BTree
 end
 
 class Catalog < BTree
-	class CatalogKey
+	class CatalogKey < Struct.new(:parentID, :nodeName)
 		class Data < BERecord
 			uint32	:parentID
 			uniStr	:nodeName
 		end
 		NameEncoding = 'UTF-16BE'
 		
-		attr_reader :parentID, :nodeName
-		def initialize(buf)
+		def self.read(buf)
 			data = buf.st_read(Data)
-			@parentID = data.parentID.to_i
-			@nodeName = data.nodeName.unicode.to_s.force_encoding(NameEncoding)
+			new(data.parentID.to_i,
+				data.nodeName.unicode.to_s.force_encoding(NameEncoding))
 		end
+		
 		
 		def case_name
 			# FIXME: better case folding; check for HFSX
-			@nodeName.downcase
+			nodeName.downcase
 		end
 		
-		def cmp_key; [@parentID, case_name]; end
+		def cmp_key; [parentID, case_name]; end
 		def <=>(other); cmp_key <=> other.cmp_key; end
 	end
 	
-	def key(buf); CatalogKey.new(buf); end
+	def key(buf); CatalogKey.read(buf); end
 end
 end
