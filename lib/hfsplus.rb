@@ -54,4 +54,11 @@ class HFSPlus
 	end
 	def extents_overflow; BTree.new(special(IDExtents, :extentsFile)); end
 	def catalog; Catalog.new(special(IDCatalog, :catalogFile)); end
+	
+	def path_fork(p, fork = DataFork)
+		rec = catalog.path(p) or return nil
+		return nil unless rec.recordType == Catalog::RecordFile
+		ext = (fork == ResourceFork ? :resourceFork : :dataFork)
+		return Fork.new(self, rec.fileID, fork, rec.send(ext))
+	end
 end

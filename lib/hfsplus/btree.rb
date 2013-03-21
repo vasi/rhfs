@@ -2,6 +2,11 @@ require_relative 'structs'
 
 class HFSPlus
 class BTree
+	module KeyComparable
+		def <=>(other); cmp_key <=> other.cmp_key; end
+		include Comparable
+	end
+	
 	class Node
 		def self.create(tree, buf)
 			desc = buf.st_read(NodeDesc)
@@ -133,12 +138,7 @@ class Catalog < BTree
 		end
 		
 		def cmp_key; [parent, cmp_name]; end
-		def <=>(other)
-			ret = cmp_key <=> other.cmp_key
-			pp [ret, cmp_key, other.cmp_key]
-			ret
-		end
-		include Comparable
+		include BTree::KeyComparable
 	end
 	
 	def key(buf); Key.read(buf); end
@@ -168,6 +168,22 @@ class Catalog < BTree
 			parent = data.folderID
 		end
 		return data
+	end
+end
+
+class ExtentsOverflow < BTree
+	class Key < Struct.new(:fork, :file, :block)
+		def self.read(buf)
+			data = buf.st_read(KeyData)
+			new(data.forkType.to_i, data.fileID.to_i, data.startBlock.to_i)
+		end
+		def cmp_key; [fork, file, block]; end
+		include BTree::KeyComparable
+	end
+	
+	def key(buf); Key.read(buf); end
+	def recdata(buf)
+		buf.st_read(BinData::Array(:type => :extentDesc, :initial_length => 8))
 	end
 end
 end

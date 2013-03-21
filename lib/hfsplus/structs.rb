@@ -203,4 +203,13 @@ class HFSPlus
 			uniStr	:nodeName
 		end
 	end
+	
+	class ExtentsOverflow < BTree
+		class KeyData < BERecord
+			uint8	:forkType
+			uint8	:pad
+			uint32	:fileID
+			uint32	:startBlock
+		end
+	end
 end
