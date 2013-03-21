@@ -15,7 +15,7 @@ class Sparsebundle < Buffer
 			@io = nil
 			open if File.exist?(@path)
 		end
-		def alloc; @io && @io.size; end
+		def alloc; @io && @io.size; end # FIXME: tristate
 		def open; @io ||= IOBuffer.new(@path, @rw); end
 		def close; @io.close if @io; @io = nil; end
 				
@@ -52,13 +52,6 @@ class Sparsebundle < Buffer
 			else
 				@io.truncate(len)
 			end
-		end
-		
-		def compact
-			open
-			zeroes = pread(0, alloc).bytes.reverse.find_index { |b| !b.zero? }
-			len = alloc - (zeroes || alloc)
-			truncate(len)
 		end
 	end
 	
@@ -180,18 +173,14 @@ class Sparsebundle < Buffer
 		end
 	end
 	
-	def compact(alloc = nil)
-		# FIXME: limited buffer???
+	def compact(sizer)
 		0.upto(@bands.count - 1) do |idx|
 			b = band(idx)
 			off = idx * @band_size
 			len = b.size
-			if alloc
-				range = alloc.allocated_range(off, len)
-				b.truncate(range) if range != len
-			else
-				b.compact
-			end
+			# FIXME: use band's alloc
+			range = sizer.allocated_range(nil, off, len)
+			b.truncate(range) if range != len
 		end
 	end
 	

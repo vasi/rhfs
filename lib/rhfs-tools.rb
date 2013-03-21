@@ -65,7 +65,7 @@ class RHFS
 			end
 			apm.count.times do |i|
 				next unless apm.partitions[i].type == APM::TypeHFS
-				compact_prep_vol(apm.partition(i))
+				compact_prep_vol(apm.buffer(i))
 			end
 		end
 		

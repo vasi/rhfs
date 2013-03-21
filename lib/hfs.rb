@@ -10,6 +10,8 @@ class HFS
 	Sector = 512
 	ReservedSectors = 2
 	MDBOffset = ReservedSectors * Sector
+	UnbitmappedBlocks = 5	# boot blocks, MDB, alt MDB, unused
+	
 	class MDB < BERecord
 		Signature = 'BD'
 		AtrbUnmounted = 1 << 8
@@ -72,17 +74,23 @@ class HFS
 			unless mdb.sigWord == MDB::Signature
 		
 		blocks = mdb.nmAlBlks
-		@bitmap = AllocationBitmap.new(@buf.sub(mdb.vbmSt * Sector,
-			(blocks + 7) / 8))
+		@bm_blocks = (blocks / 8.0).ceil
+		@bitmap = AllocationBitmap.new(
+			@buf.sub(mdb.vbmSt * Sector, @bm_blocks))
 	end
 	
 	def write_mdb
 		@buf.st_write(mdb, MDBOffset)
 	end
 	
-	def allocation_finder
-		AllocationFinder.new(@bitmap, mdb.alBlkSiz, mdb.nmAlBlks,
-			mdb.vbmSt * Sector)
+	def size
+		(@bm_blocks + UnbitmappedBlocks) * Sector +
+			mdb.nmAlBlks * mdb.alBlkSiz
+	end
+	
+	def sizer
+		MultiSizer.new(size,
+			mdb.vbmSt => BitmapSizer.new(@bitmap, mdb.alBlkSiz, mdb.nmAlBlks))
 	end
 	
 	def self.identify(buf)

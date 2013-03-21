@@ -96,8 +96,12 @@ class APM
 		end	
 	end
 	
-	def partition(i)
-		part = partitions[i]
-		@buf.sub(part.pblock_start * blkSize, part.pblocks * blkSize)
+	def offset(i)
+		return partitions[i].pblock_start * blkSize
 	end
+	def size(i = nil)
+		return block0.blkCount * blkSize unless i
+		return partitions[i].pblocks * blkSize
+	end
+	def buffer(i); @buf.sub(offset(i), size(i)); end
 end
