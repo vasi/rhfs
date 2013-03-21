@@ -40,6 +40,42 @@ class ReadSizer < CompactSizer
 	end
 end
 
+class AllocBitmap
+	def initialize(cache_size)
+		@cache_size = cache_size
+		@cache_idx = @cache_buf = nil
+	end
+	
+	def read(ci)
+		# Subclass: read into @cache_buf
+		@cache_idx = ci
+	end
+	
+	def cache_bits; @cache_size * 8; end
+	
+	def cache(idx)
+		ci = idx / cache_bits
+		read(ci) unless @cache_idx == ci
+	end
+	
+	def allocated?(idx)
+		cache(idx)
+		off = idx % cache_bits
+		bit = 7 - (off % 8)
+		byte = @cache_buf[off / 8]
+		return ((byte >> bit) & 1) == 1
+	end
+end
+class BufAllocBitmap < AllocBitmap
+	def initialize(buf, cache_size)
+		super(cache_size)
+		@buf = buf
+	end
+	def read(ci)
+		@cache_buf = @buf.pread(ci * @cache_size, @cache_size).bytes
+		super
+	end
+end
 class BitmapSizer < CompactSizer
 	def initialize(bitmap, block_size, blocks)
 		@bm, @bsize, @count = bitmap, block_size, blocks

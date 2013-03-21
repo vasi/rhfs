@@ -35,36 +35,6 @@ class HFS
 		uint16	:embedBlockCount
 	end
 	
-	class AllocationBitmap
-		Sector = HFS::Sector
-		BitsPerSec = Sector * 8
-		
-		def initialize(buf)
-			@buf = buf
-			@cur_sec = @cache = nil
-		end
-		
-		def read(sec)
-			@cache = @buf.pread(sec * Sector, Sector).bytes
-			@cur_sec = sec
-		end
-		
-		def cache(idx)
-			sector = idx / BitsPerSec
-			return if sector == @cur_sec
-			read(sector)
-		end
-		
-		def allocated?(idx)
-			cache(idx)
-			off = idx % BitsPerSec
-			bit = 7 - (off % 8)
-			byte = @cache[off / 8]
-			return ((byte >> bit) & 1) == 1
-		end
-	end
-
-	
 	attr_accessor :mdb
 	attr_reader :bitmap
 	def initialize(buf)
@@ -75,8 +45,8 @@ class HFS
 		
 		blocks = mdb.nmAlBlks
 		@bm_blocks = (blocks / 8.0).ceil
-		@bitmap = AllocationBitmap.new(
-			@buf.sub(mdb.vbmSt * Sector, @bm_blocks))
+		@bitmap = BufAllocBitmap.new(
+			@buf.sub(mdb.vbmSt * Sector, @bm_blocks), Sector)
 	end
 	
 	def write_mdb

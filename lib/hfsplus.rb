@@ -1,4 +1,5 @@
 require_relative 'buffer'
+require_relative 'compact'
 
 require_relative 'hfsplus/structs'
 require_relative 'hfsplus/btree'
@@ -64,7 +65,19 @@ class HFSPlus
 	def extents_overflow
 		ExtentsOverflow.new(special(IDExtents, :extentsFile))
 	end
-	def catalog; Catalog.new(special(IDCatalog, :catalogFile)); end
+	def catalog
+		Catalog.new(special(IDCatalog, :catalogFile))
+	end
+	def allocation_file
+		special(IDAllocation, :allocationFile)
+	end
+	
+	def bitmap
+		BufAllocBitmap.new(allocation_file, asize)
+	end
+	def sizer
+		BitmapSizer.new(bitmap, asize, header.totalBlocks)
+	end
 	
 	def path_fork(p, fork = DataFork)
 		rec = catalog.path(p) or return nil
