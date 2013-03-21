@@ -15,7 +15,7 @@ class Sparsebundle < Buffer
 			@io = nil
 			open if File.exist?(@path)
 		end
-		def alloc; @io && @io.size; end # FIXME: tristate
+		def alloc; @io ? @io.size : 0; end
 		def open; @io ||= IOBuffer.new(@path, @rw); end
 		def close; @io.close if @io; @io = nil; end
 				
@@ -35,7 +35,7 @@ class Sparsebundle < Buffer
 			nz = len - zeros
 			return buf.bytesize if !@io && nz == 0
 			
-			open # forced
+			open # forced create
 			space = [alloc - off, 0].max
 			want = [nz, [space, len].min].max
 			ret = @io.pwrite(off, buf.byteslice(0, want))
@@ -44,7 +44,6 @@ class Sparsebundle < Buffer
 		end
 		
 		def truncate(len)
-			open
 			return if len >= alloc
 			if len == 0
 				File.unlink(@path)
@@ -177,10 +176,10 @@ class Sparsebundle < Buffer
 		0.upto(@bands.count - 1) do |idx|
 			b = band(idx)
 			off = idx * @band_size
-			len = b.size
-			# FIXME: use band's alloc
+			len = b.alloc
+			next if len == 0
 			range = sizer.allocated_range(nil, off, len)
-			b.truncate(range) if range != len
+			b.truncate(range) if range < len
 		end
 	end
 	
