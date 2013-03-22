@@ -1,5 +1,5 @@
 require_relative '../structs'
-require_relative 'util'
+require_relative 'utils'
 
 class HFSPlus
 	class UniStr255 < BERecord

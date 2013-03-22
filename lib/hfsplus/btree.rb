@@ -1,5 +1,6 @@
 require_relative 'structs'
-require_relative 'util'
+require_relative 'unicode'
+require_relative 'utils'
 
 class HFSPlus
 class BTree	

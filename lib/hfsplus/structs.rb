@@ -1,6 +1,3 @@
-require 'rubygems'
-require 'bindata'
-
 require_relative '../structs'
 require_relative 'unicode'
 

@@ -2,8 +2,9 @@ require_relative 'buffer'
 require_relative 'compact'
 require_relative 'hfs'
 
-require_relative 'hfsplus/structs'
 require_relative 'hfsplus/btree'
+require_relative 'hfsplus/structs'
+require_relative 'hfsplus/unicode'
 
 # Apple's HFS+ format
 # See hfs_format.h and Apple Tech Note 1150
