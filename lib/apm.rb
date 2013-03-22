@@ -1,3 +1,6 @@
+require_relative 'compact'
+require_relative 'hfs'
+require_relative 'hfsplus'
 require_relative 'structs'
 
 # Apple Partition Map
@@ -73,6 +76,7 @@ class APM
 	def next_block; @entries.map { |e| e.pblock_start + e.pblocks }.max; end
 	
 	
+	Filesystems = [HFSPlus, HFS]
 	class Partition
 		attr_reader :blkSize, :index, :entry
 		def initialize(basebuf, bsize, index, entry)
@@ -82,9 +86,31 @@ class APM
 		def size; entry.pblocks * blkSize; end
 		def buffer; @basebuf.sub(offset, size); end
 		def type; entry.type; end
+		
+		def filesystem
+			buf = buffer
+			Filesystems.each do |kl|
+				begin
+					fs = kl.new(buf)
+					return fs
+				rescue MagicException
+				end
+			end
+			return nil
+		end
 	end
 	def partition(i); Partition.new(@buf, blkSize, i, @entries[i]); end
 	def partitions; count.times { |i| yield partition(i) }; end
+	
+	
+	def sizer
+		subs = {}
+		partitions do |pt|
+			fs = pt.filesystem or next
+			subs[pt.offset] = fs.sizer
+		end
+		MultiSizer.new(size, subs)
+	end
 	
 	
 	def add(type, **opts)
