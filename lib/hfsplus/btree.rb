@@ -182,6 +182,10 @@ class Catalog < BTree
 		end
 		return data
 	end
+	
+	def case_sensitive
+		header.keyCompareType == Header::KeyCompareBinary
+	end
 end
 
 class ExtentsOverflow < BTree

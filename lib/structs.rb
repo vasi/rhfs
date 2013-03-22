@@ -1,3 +1,6 @@
+require 'rubygems'
+require 'bindata'
+
 class BERecord < BinData::Record
 	endian :big
 end

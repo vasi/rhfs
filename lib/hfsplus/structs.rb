@@ -24,15 +24,6 @@ class HFSPlus
 		int16	:right
 	end
 	
-	class UniStr < BERecord
-		uint16	:len, :value => lambda { :unicode.length / 2 }
-		string	:unicode, :read_length => lambda { len * 2 } # UTF-16
-		
-		Encoding = 'UTF-16BE'
-		def to_s; unicode.force_encoding(Encoding); end
-	end
-	
-	
 	class ExtentDesc < BERecord
 		uint32	:startBlock
 		uint32	:blockCount
@@ -116,6 +107,9 @@ class HFSPlus
 			uint8	:keyCompareType
 			uint32	:attributes
 			array	:reserved3, :type => :uint32, :initial_length => 16
+			
+			KeyCompareCaseFolding = 0xCF
+			KeyCompareBinary = 0xBC
 		end
 	end
 	
