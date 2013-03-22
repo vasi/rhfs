@@ -77,6 +77,17 @@ class APM
 	
 	
 	Filesystems = [HFSPlus, HFS]
+	def self.filesystem(buf)
+		Filesystems.each do |kl|
+			begin
+				fs = kl.new(buf)
+				return fs
+			rescue MagicException
+			end
+		end
+		return nil
+	end
+	
 	class Partition
 		attr_reader :blkSize, :index, :entry
 		def initialize(basebuf, bsize, index, entry)
@@ -87,17 +98,7 @@ class APM
 		def buffer; @basebuf.sub(offset, size); end
 		def type; entry.type; end
 		
-		def filesystem
-			buf = buffer
-			Filesystems.each do |kl|
-				begin
-					fs = kl.new(buf)
-					return fs
-				rescue MagicException
-				end
-			end
-			return nil
-		end
+		def filesystem; APM.filesystem(buffer); end
 	end
 	def partition(i); Partition.new(@buf, blkSize, i, @entries[i]); end
 	def partitions; count.times { |i| yield partition(i) }; end

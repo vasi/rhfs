@@ -1,4 +1,5 @@
 require_relative 'apm'
+require_relative 'compact'
 require_relative 'hfs'
 require_relative 'hfsplus'
 require_relative 'hdiutil'
@@ -34,7 +35,7 @@ class RHFS
 		hfs.write_mdb
 	end
 	
-	def self.compact(path)
+	def self.compact_hdiutil(path)
 		# hdiutil breaks unless we fixup HFS+ wrappers
 		Sparsebundle.new(path) do |sb|
 			compact_prep_vol(sb) # whole volume
@@ -46,6 +47,27 @@ class RHFS
 		end
 		
 		Hdiutil.compact(path)
+	end
+	
+	def self.compact_native(path, search)
+		Sparsebundle.new(path) do |sb|
+			base = search ? ReadSizer.new(sb) : OpaqueSizer.new(sb.size)
+			sizer = nil
+			begin
+				apm = APM.new(sb)
+				sizer = apm.sizer
+			rescue MagicException
+				fs = APM.filesystem(sb)
+				unless fs || search
+					$stderr.puts "Can't easily compact this disk image"
+					exit(-1)
+				end
+				sizer = fs.sizer if fs
+			end
+			
+			sizer, base = base, nil unless sizer
+			sb.compact(sizer, base)
+		end
 	end
 end
 
@@ -64,6 +86,10 @@ class RHFSCommands
 		raise Trollop::CommandlineError.new("Bad number of arguments") \
 			unless args.size == 1
 		path, = *args
-		RHFS.compact(path)
+		if opts[:apple]
+			RHFS.compact_hdiutil(path)
+		else
+			RHFS.compact_native(path, opts[:search])
+		end
 	end
 end
