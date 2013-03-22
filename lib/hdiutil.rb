@@ -1,6 +1,8 @@
 require 'rubygems'
 require 'plist'
 
+require 'tmpdir'
+
 class Hdiutil
 	Command = "/usr/bin/hdiutil"
 	

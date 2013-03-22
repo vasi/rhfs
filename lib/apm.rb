@@ -38,63 +38,89 @@ class APM
 		string	:ignore_1, :length => 420
 		hide	:reserved_1, :ignore_1
 		
-		def set_flags(*fs)
-			flags = 0
+		def add_flags(*fs)
 			fs.each do |f|
-				flags |= f.respond_to?(:|) ? f : self.class.const_get(f)
+				self.flags |= f.respond_to?(:|) ? f : self.class.const_get(f)
 			end
 		end
 	end
 	
-	def blkSize; @block0.blkSize; end
-	def count; @partitions.count; end
 	
 	DONT_READ = false
-	
-	attr_accessor :block0, :partitions
 	def initialize(buf, read = true)
 		@buf = buf
 		@block0 = Block0.new
-		@partitions = []
+		@block0.blkCount = buf.size / @block0.blkSize
+		@entries = []
 		return unless read
 		
 		@block0 = @buf.st_read(Block0, 0)
 		raise MagicException.new("Invalid APM header") \
 			unless block0.sig == Block0::Signature
 		pmap = @buf.st_read(Entry, blkSize)
-		@partitions = (1..pmap.map_entries).map do |i|
-			p = @buf.st_read(Entry, i * blkSize)
-			raise "Invalid APM entry" unless p.signature == Entry::Signature
-			p
+		@entries = (1..pmap.map_entries).map do |i|
+			pt = @buf.st_read(Entry, i * blkSize)
+			raise "Invalid APM entry" unless pt.signature == Entry::Signature
+			pt
 		end
-	end
+	end	
 	
-	def self.create(buf)
-		sb = new(buf, DONT_READ)
-		sb.block0.blkCount = buf.size / sb.block0.blkSize
-		return sb
+	attr_accessor :block0
+	def blkSize; @block0.blkSize; end
+	def count; @entries.count; end
+	def size; blkSize * @block0.blkCount; end
+	
+	def next_block; @entries.map { |e| e.pblock_start + e.pblocks }.max; end
+	
+	
+	class Partition
+		attr_reader :blkSize, :index, :entry
+		def initialize(basebuf, bsize, index, entry)
+			@basebuf, @blkSize, @index, @entry = basebuf, bsize, index, entry
+		end
+		def offset; entry.pblock_start * blkSize; end
+		def size; entry.pblocks * blkSize; end
+		def buffer; @basebuf.sub(offset, size); end
+		def type; entry.type; end
+	end
+	def partition(i); Partition.new(@buf, blkSize, i, @entries[i]); end
+	def partitions; count.times { |i| yield partition(i) }; end
+	
+	
+	def add(type, **opts)
+		if @entries.empty? # Need an entry for the partition map itself
+			@entries << Entry.new(:type => TypePMAP, :pblock_start => 1,
+				:pblocks => DefaultEntries)
+		end
+		
+		len = opts[:len]
+		flags = opts[:flags]
+		
+		blocks = len ? len / blkSize : @block0.blkCount
+		start = next_block
+		blocks = [blocks, @block0.blkCount - start].min
+		
+		entry = Entry.new(:type => type, :pblock_start => start,
+			:pblocks => blocks)
+		entry.add_flags(*flags) if flags
+		
+		@entries << entry
+		return partition(count - 1)
 	end
 	
 	def write(fixup = true)
 		@buf.st_write(block0, 0)
-		partitions.each_with_index do |pt,i|
-			pt.map_entries = count if fixup
-			@buf.st_write(pt, (i + 1) * blkSize)
+		
+		# Zero out the partition map first
+		partitions do |pt|
+			next unless pt.type == TypePMAP
+			pt.buffer.pwrite(0, "\0" * pt.size)
 		end
 		
-		pmap = partitions[0]
-		if pmap.type == TypePMAP
-			blanks = pmap.pblocks - count
-			@buf.pwrite((count + 1) * blkSize, "\0" * (blanks * blkSize))
-		end	
+		# Write the entries
+		partitions do |pt|
+			pt.entry.map_entries = count if fixup
+			@buf.st_write(pt.entry, (pt.index + 1) * blkSize)
+		end
 	end
-	
-	def offset(i)
-		return partitions[i].pblock_start * blkSize
-	end
-	def size(i = nil)
-		return block0.blkCount * blkSize unless i
-		return partitions[i].pblocks * blkSize
-	end
-	def buffer(i); @buf.sub(offset(i), size(i)); end
 end

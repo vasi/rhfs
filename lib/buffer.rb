@@ -83,7 +83,7 @@ class IOBuffer < Buffer
 		if io.respond_to? :read
 			@io = io
 		else
-			@io = open(io, rw ? 'a+' : 'r')
+			@io = open(io, rw ? (File::RDWR | File::CREAT) : File::RDONLY)
 		end
 		
 		@size_spec = size
