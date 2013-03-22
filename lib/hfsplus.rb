@@ -70,6 +70,7 @@ class HFSPlus
 	end
 	def size; asize * header.totalBlocks; end
 	def asize; header.blockSize; end # Allocation block size
+	def case_sensitive; catalog.case_sensitive; end
 	
 	def special(cnid, data)
 		Fork.new(self, cnid, DataFork, @header.send(data))

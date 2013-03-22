@@ -2,8 +2,15 @@ require 'rubygems'
 require 'bindata'
 
 require_relative '../structs'
+require_relative 'unicode'
 
 class HFSPlus
+	module KeyComparable
+		def <=>(other); cmp_key <=> other.cmp_key; end
+		include Comparable
+	end
+	
+	
 	DataFork = 0
 	ResourceFork = 0xff
 	
@@ -115,8 +122,8 @@ class HFSPlus
 	
 	class Catalog < BTree
 		class KeyData < BERecord
-			uint32	:parentID
-			uniStr	:nodeName
+			uint32		:parentID
+			uniStr255	:nodeName
 		end
 		
 		RecordFolder = 1
@@ -197,7 +204,7 @@ class HFSPlus
 			int16	:recordType
 			uint16	:reserved
 			uint32	:parentID
-			uniStr	:nodeName
+			uniStr255	:nodeName
 		end
 	end
 	

@@ -1,9 +1,14 @@
 require_relative '../structs'
+require_relative 'util'
 
 class HFSPlus
 	class UniStr255 < BERecord
 		uint16	:len, :value => lambda { :unicode.length }
-		array	:type => :uint16, :initial_length => :len
+		array	:unicode, :type => :uint16, :initial_length => :len
+		
+		def to_u(case_sensitive)
+			Unicode.new(unicode.snapshot, case_sensitive)
+		end
 	end
 		
 	class Unicode
@@ -11,20 +16,21 @@ class HFSPlus
 		
 		def initialize(s, case_sensitive)
 			Unicode.read_tables
+			s = Unicode.atos(s) unless s.respond_to?(:each_codepoint)
 			
 			@decomp = Unicode.decompose(s)
 			@case = case_sensitive ? @decomp : Unicode.case_fold(@decomp)
 		end
-		def to_s; @decomp; end		
-		def <=>(other); @decomp <=> other.instance_variable_get(:@decomp); end
-		include Comparable
+		def to_s; @decomp; end
+		def cmp_key; @case; end
+		include HFSPlus::KeyComparable
 		
 		
 		def self.read_tables
 			return if @case_table
 			
 			data = []
-			DATA.each do |line|
+			Tables.each_line do |line|
 				# Remove comments
 				line.sub!(%r{//.*}, '')
 				line.gsub!(%r{/\*.*?\*/}, '')
@@ -95,11 +101,14 @@ class HFSPlus
 	end
 	
 	def string(s)
-		Unicode.new(s, catalog.case_sensitive)
+		Unicode.new(s, case_sensitive)
 	end
 end
 
-__END__
+# Tables
+class HFSPlus
+class Unicode
+	Tables = <<EOS
 	// Case table from FastUnicodeCompare.c (Tech Note 1150)
 	
     // High-byte indices ( == 0 iff no case mapping and no ignorables )
@@ -4264,3 +4273,6 @@ TABLE_DECOMPOSE
 0xFB4E
 
 0x05E4 0x05BF
+EOS
+end
+end

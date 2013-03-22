@@ -1,12 +1,8 @@
 require_relative 'structs'
+require_relative 'util'
 
 class HFSPlus
-class BTree
-	module KeyComparable
-		def <=>(other); cmp_key <=> other.cmp_key; end
-		include Comparable
-	end
-	
+class BTree	
 	class Node
 		def self.create(tree, buf)
 			desc = buf.st_read(NodeDesc)
@@ -133,28 +129,20 @@ class BTree
 end
 
 class Catalog < BTree
-	class Key
-		attr_reader :parent, :name
-		def initialize(parent, name)
-			@parent = parent
-			@name = name.encode(HFSPlus::UniStr::Encoding)
-		end
-		
-		def self.read(buf)
+	class Key < Struct.new(:parent, :name)
+		def self.read(buf, case_sensitive)
 			data = buf.st_read(KeyData)
-			new(data.parentID.to_i, data.nodeName.to_s)
+			new(data.parentID.to_i, data.nodeName.to_u(case_sensitive))
 		end		
 		
-		def cmp_name
-			# FIXME: better case folding; check for HFSX
-			name.downcase.each_char.reject { |c| c.ord == 0 }.join
-		end
-		
-		def cmp_key; [parent, cmp_name]; end
-		include BTree::KeyComparable
+		def cmp_key; [parent, name]; end
+		include KeyComparable
+	end
+	def make_key(parent, name = '')
+		Key.new(parent, Unicode.new(name, case_sensitive))
 	end
 	
-	def key(buf); Key.read(buf); end
+	def key(buf); Key.read(buf, case_sensitive); end
 	def recdata(buf)
 		type = buf.st_read(BinData::Int16be)
 		klass = case type
@@ -174,7 +162,7 @@ class Catalog < BTree
 			name = parts.shift
 			next if name.empty?
 			
-			rec = find(Key.new(parent, name)) or return nil
+			rec = find(make_key(parent, name)) or return nil
 			data = rec.data
 			return data if data.recordType == RecordFile
 			
@@ -184,7 +172,7 @@ class Catalog < BTree
 	end
 	
 	def case_sensitive
-		header.keyCompareType == Header::KeyCompareBinary
+		header.keyCompareType == BTree::Header::KeyCompareBinary
 	end
 end
 
@@ -195,7 +183,7 @@ class ExtentsOverflow < BTree
 			new(data.forkType.to_i, data.fileID.to_i, data.startBlock.to_i)
 		end
 		def cmp_key; [fork, file, block]; end
-		include BTree::KeyComparable
+		include KeyComparable
 	end
 	
 	def key(buf); Key.read(buf); end
