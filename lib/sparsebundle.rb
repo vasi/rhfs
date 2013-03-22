@@ -84,7 +84,6 @@ class Sparsebundle < Buffer
 	attr_reader :size
 	def initialize(path, rw = true, &block)
 		@path, @rw = path, rw
-		lock
 		
 		plist = Plist.parse_xml(File.join(path, PathPlist)) \
 			or raise "Can't parse sparsebundle plist"
@@ -95,6 +94,9 @@ class Sparsebundle < Buffer
 		@size = plist[KeySize] or raise "Sparsebundle has no size"
 		@band_size = plist[KeyBandSize] \
 			or raise "Sparsebundle has no band size"
+		
+		lock
+		
 		band_count = @size / @band_size
 		@bands = [nil] * band_count
 		
@@ -132,24 +134,13 @@ class Sparsebundle < Buffer
 	
 	def lock
 		file = File.join(@path, PathLock)
-		raise "No lock file in sparsebundle" unless File.exist?(file)
-		
-		@lock = nil
-		return unless RUBY_PLATFORM.include?("darwin")
-		
-		# See /usr/include/sys/fcntl.h
-		o_shlock = 0x10
-		o_exlock = 0x20
-		o_nonblock = 0x4
-	
-		flags = o_nonblock
-		if @rw
-			flags ||= o_exlock | Fcntl::O_RDWR
-		else
-			flags ||= o_shlock | Fcntl::O_RDONLY
+		@lock = open(file, @rw ? File::RDWR : File::RDONLY)
+		flags = File::LOCK_NB | (@rw ? File::LOCK_EX : File::LOCK_SH)
+		unless @lock.flock(flags)
+			@lock.close
+			@lock = nil
+			raise "Sparsebundle is locked"
 		end
-		fd = IO.sysopen(file, flags, 0644)
-		@lock = IO.new(fd)
 	end
 
 	def close
