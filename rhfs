@@ -36,8 +36,11 @@ subcommands = [
 		opt :band, "Size of each band of the image", :type => :string,
 			:default => "8m"
 	end,
-	Subcommand.new(:compact, "PATH", "Shrink a sparsebundle") { }
+	Subcommand.new(:compact, "PATH", "Shrink a sparsebundle") { },
+	Subcommand.new(:help, "[SUBCOMMAND]", "Show help on a subcommand") { },
 ]
+find_sub = proc { |n| subcommands.find { |s| s.name.to_s == n } }
+
 
 global_parser = Trollop::Parser.new do	
 	size_max = subcommands.map { |s| s.name.size }.max
@@ -56,13 +59,23 @@ sub = nil
 Trollop.with_standard_exception_handling global_parser do
 	opts = global_parser.parse ARGV
 	cmd = ARGV.shift or raise Trollop::HelpNeeded
-	sub = subcommands.find { |s| s.name.to_s == cmd } \
-		or raise Trollop::CommandlineError.new(
-			"unknown subcommand #{cmd.inspect}")
+	sub = find_sub.(cmd) or raise Trollop::CommandlineError.new(
+		"unknown subcommand #{cmd.inspect}")
 end
 
 Trollop.with_standard_exception_handling sub.parser do
 	opts = sub.parser.parse ARGV
+	if sub.name == :help
+		raise Trollop::HelpNeeded if ARGV.count > 1
+		if ARGV.empty?
+			global_parser.educate
+		else
+			scmd = find_sub.(ARGV.shift) or raise Trollop::HelpNeeded
+			scmd.parser.educate
+		end
+		exit(-2)
+	end
+	
 	begin
 		RHFSCommands.send(sub.name, opts, *ARGV)
 	rescue ArgumentError
