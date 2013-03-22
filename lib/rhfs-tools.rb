@@ -46,7 +46,8 @@ class RHFS
 	end
 	
 	def self.compact_prep_vol(buf)
-		return unless HFS.identify(buf) == :HFSWrapper
+		# FIXME
+		return unless HFSPlus.identify(buf) == :HFSWrapper
 		
 		# Add the flag whose absence gives hdiutil trouble
 		hfs = HFS.new(buf)

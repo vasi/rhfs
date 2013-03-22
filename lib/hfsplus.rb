@@ -1,5 +1,6 @@
 require_relative 'buffer'
 require_relative 'compact'
+require_relative 'hfs'
 
 require_relative 'hfsplus/structs'
 require_relative 'hfsplus/btree'
@@ -53,10 +54,21 @@ class HFSPlus
 	
 	attr_reader :header, :buf
 	def initialize(buf)
-		# FIXME: wrapped
+		# HFS+ can be wrapped inside an HFS partition
+		if HFSPlus.identify(buf) == :HFSWrapper
+			@wrapper = HFS.new(buf)
+			buf = buf.sub(@wrapper.embed_offset, @wrapper.embed_size)
+		end
+		
 		@buf = buf
 		@header = @buf.st_read(Header, HeaderOffset)
+		
+		sig = @header.signature
+		if sig != Header::HFSPlusSignature && sig != Header::HFSXSignature
+			raise MagicException.new("Invalid HFS+ partition")
+		end
 	end
+	def size; asize * header.totalBlocks; end
 	def asize; header.blockSize; end # Allocation block size
 	
 	def special(cnid, data)
@@ -76,7 +88,13 @@ class HFSPlus
 		BufAllocBitmap.new(allocation_file, asize)
 	end
 	def sizer
-		BitmapSizer.new(bitmap, asize, header.totalBlocks)
+		if @wrapper
+			sz, off = @wrapper.size, @wrapper.embed_offset
+		else
+			sz, off = size, 0
+		end
+		MultiSizer.new(sz, off =>
+			BitmapSizer.new(bitmap, asize, header.totalBlocks))
 	end
 	
 	def path_fork(p, fork = DataFork)
@@ -84,5 +102,19 @@ class HFSPlus
 		return nil unless rec.recordType == Catalog::RecordFile
 		ext = (fork == ResourceFork ? :resourceFork : :dataFork)
 		return Fork.new(self, rec.fileID, fork, rec.send(ext))
+	end
+
+	def self.identify(buf)
+		sigt = BinData::String.new(:length => 2)
+		sig = buf.st_read(sigt, HeaderOffset)
+		case sig
+		when HFS::MDB::Signature
+			mdb = buf.st_read(HFS::MDB, HeaderOffset)
+			return mdb.embedSigWord == HFS::MDB::EmbedSignature \
+				? :HFSWrapper : :HFS
+		when Header::HFSPlusSignature; return :HFSPlus
+		when Header::HFSXSignature; return :HFSX
+		else; return nil
+		end
 	end
 end

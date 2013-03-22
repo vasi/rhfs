@@ -46,6 +46,9 @@ class HFSPlus
 	end
 	
 	class Header < BERecord
+		HFSPlusSignature = "H+"
+		HFSXSignature = "HX"
+		
 		string	:signature, :length => 2
 		uint16	:version
 		uint32	:attributes
