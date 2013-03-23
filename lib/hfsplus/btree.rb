@@ -96,7 +96,7 @@ class BTree
 			loop do
 				block[n.record(i)]
 				i += 1
-				next if i < count
+				next if i < n.count
 				
 				break if n.desc.fLink == 0
 				n = @tree.node(n.desc.fLink)
