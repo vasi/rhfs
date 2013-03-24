@@ -79,7 +79,7 @@ class Buffer
 	end
 	
 	# Helper for doing operations in blocks
-	def each_block(off = 0, len = nil, bsize = DefaultSize, &block)
+	def each_block(off = 0, len = nil, bsize = DefaultBlockSize, &block)
 		len ||= size - off
 		last = off + len
 		while off < last
@@ -133,7 +133,7 @@ class IOBuffer < Buffer
 	end
 	
 	attr_reader :size
-	def close; @io.close; end
+	def close; @io.close unless @io.closed?; end
 	def pread(off, len)
 		@io.seek(off, IO::SEEK_SET)
 		@io.read(len)

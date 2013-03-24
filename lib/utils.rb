@@ -24,11 +24,16 @@ class RHFS
 		hfs.write_mdb
 	end
 	
-	def self.open(path, rw = false, &block)
+	def self.buf_open(path, rw = true, &block)
 		type = file = nil
+		unless File.exist?(path)
+			block.(nil, nil)
+			return
+		end
+		
 		[Sparsebundle, IOBuffer].each do |k|
 			begin
-				type, file = k, k.new(path)
+				type, file = k, k.new(path, rw)
 				break
 			rescue MagicException
 			end
@@ -40,18 +45,13 @@ class RHFS
 		file.close if file
 	end
 	
-	def self.sparsebundle_open_or_create(path, size, band_spec, &block)
-		sb = nil
-		band_size = size_spec(band_spec || Sparsebundle::DefaultBandSizeOpt)
-		begin
-			sb = Sparsebundle.new(path)
-			raise "Existing sparsebundle has different band size" \
-				if size_spec && band_size != sb.band_size
-		rescue MagicException
-			sb = Sparsebundle.create(path, size, band_size)
+	def self.buf_create(obj, klass, path, size, band_size, &block)
+		if obj
+			block.(obj)
+		elsif klass == Sparsebundle
+			Sparsebundle.create(path, size, band_size, &block)
+		else
+			klass.new(path, :rw, &block)
 		end
-		block.(sb)
-	ensure
-		sb.close if sb
 	end
 end

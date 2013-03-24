@@ -158,7 +158,10 @@ class Sparsebundle < Buffer
 	end
 
 	def close
-		@lock.close if @lock
+		if @lock
+			@lock.close
+			@lock = nil
+		end
 		@bands.each { |b| b.close if b }
 	end
 	

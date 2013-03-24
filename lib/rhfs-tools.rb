@@ -87,24 +87,36 @@ class RHFSCommands
 		raise Trollop::CommandlineError.new("Bad number of arguments") \
 			unless output && !too_many
 		
-		formats = [:sparsebundle, :raw].select { |k| opts[k] }
+		formats = {:sparsebundle => Sparsebundle, :raw => IOBuffer}
+		want = formats.keys.select { |k| opts[k] }.map { |k| formats[k] }
 		raise Trollop::CommandlineError.new("Output can only be one format") \
-			if formats.size > 1
-		format, = *formats
+			if want.count > 1
+		format = want.first
 		
-		RHFS.open(input) do |type, src|
-			format ||= (type == Sparsebundle ? :raw : :sparsebundle)
+		band_size = RHFS.size_spec(opts[:band] ||
+			Sparsebundle::DefaultBandSizeOpt)
+		
+		RHFS.buf_open(input, false) do |itype, src|
 			raise Trollop::CommandlineError.new(
-				"Band size only applies to sparsebundles") \
-					if format != :sparsebundle && opts[:band]
+				"Input file doesn't exist") unless src
 			
-			block = lambda { |dst| src.copy(dst) }
-			case format
-				when :raw; IOBuffer.new(output, &block)
-				when :sparsebundle
-					RHFS.sparsebundle_open_or_create(output, src.size,
-						opts[:band], &block)
-				else; raise "Unknown format"
+			RHFS.buf_open(output) do |type, dst|
+				raise "Existing output has wrong format" \
+					if type && format && type != format
+				raise "Existing sparsebundle has wrong band size" \
+					if dst.respond_to?(:band_size) && opts[:band] &&
+						dst.band_size != band_size
+				
+				# Default to opposite of input
+				type ||= format ||
+					(itype == Sparsebundle ? IOBuffer : Sparsebundle)
+				raise Trollop::CommandlineError.new(
+					"Band size only applies to sparsebundles") \
+						if type != Sparsebundle && opts[:band]
+				
+				RHFS.buf_create(dst, type, output, src.size, band_size) do |d|
+					src.copy(d)
+				end
 			end
 		end
 	end
