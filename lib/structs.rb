@@ -1,4 +1,3 @@
-require 'rubygems'
 require 'bindata'
 
 class BERecord < BinData::Record
