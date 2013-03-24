@@ -1,0 +1,13 @@
+- test on Linux
+- 'resize' command
+	- ok to fail on wrapped HFS+
+	- ok to fail on journal or bad blocks
+	- ok to copy rather than resize in-situ
+	- just relocate extents, don't implement full r/w btrees
+- Command to copy files to/from fs?
+- README
+	- requirements: ruby2, gems
+	- related: sparsebundlefs, SheepShaver, hdiutil
+	- C program
+	- "Burn" in Classic
+- tell SheepShaver folk about the new tool
