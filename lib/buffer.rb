@@ -1,11 +1,26 @@
 # This lets us have multiple sub-buffers based on the same file, with different
 # position pointers.
 class Buffer
+	DefaultBlockSize = 512
+	
 	# Basic operations
 	def close; end
 	def size; end
-	def pread(off, size); end
+	def pread(off, len); end
 	def pwrite(off, buf); end
+	
+	# Optional operation
+	def zero(off, len); pwrite(off, "\0" * len); end
+	
+	def copy(dest, bsize = DefaultBlockSize)
+		off = 0
+		while off < size
+			len = [bsize, size - off].min
+			dest.pwrite(start, pread(start, len))
+			off += len
+		end
+	end
+	
 	
 	# Initialization
 	def initialize
@@ -122,6 +137,12 @@ class IOBuffer < Buffer
 		@io.truncate(len)
 		find_size
 	end
+	
+	def zero(off, len)
+		wlast = [off + len, size].min
+		super(off, wlast - off) if off < wlast
+		truncate(off + len) if off + len > size
+	end
 end
 
 module BandedBuffer
@@ -157,5 +178,17 @@ module BandedBuffer
 			break unless r == blen
 		end
 		return ret
+	end
+	
+	def zero(off, len)
+		bandify(off, len) do |band, boff, blen, _|
+			band.zero(boff, blen)
+		end
+	end
+	
+	def copy(dest)
+		bandify do |band, _, _, band_off|
+			band.copy_band(dest, band_off)
+		end
 	end
 end

@@ -43,6 +43,14 @@ class Sparsebundle < Buffer
 			return ret
 		end
 		
+		def zero(off, len)
+			if off + len < alloc
+				super
+			elsif off < alloc
+				truncate(off)
+			end
+		end
+		
 		def compact(off, sizer, base)
 			len = alloc
 			return if len == 0 # as small as it gets
@@ -59,6 +67,11 @@ class Sparsebundle < Buffer
 			else
 				@io.truncate(len)
 			end
+		end
+		
+		def copy_band(dest, off)
+			dest.pwrite(off, pread(0, alloc)) if alloc != 0
+			dest.zero(off + alloc, size - alloc) if size > alloc
 		end
 	end
 	
@@ -78,17 +91,18 @@ class Sparsebundle < Buffer
 	
 	Sector = 512
 	DefaultBandSizeOpt = "8m"
-	DefaultBandSize = RHFS.size(DefaultBandSizeOpt)
+	DefaultBandSize = RHFS.size_spec(DefaultBandSizeOpt)
 	
 	
-	attr_reader :size
+	attr_reader :size, :band_size
 	def initialize(path, rw = true, &block)
 		@path, @rw = path, rw
 		
 		plist = Plist.parse_xml(File.join(path, PathPlist)) \
-			or raise "Can't parse sparsebundle plist"
+			or raise MagicException.new("Can't parse sparsebundle plist")
 		PlistRequired.each do |k,v|
-			plist[k] == v or raise "Sparsebundle plist unrecognized"
+			plist[k] == v or \
+				raise MagicException.new("Sparsebundle plist unrecognized")
 		end
 		
 		@size = plist[KeySize] or raise "Sparsebundle has no size"

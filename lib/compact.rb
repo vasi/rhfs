@@ -1,3 +1,5 @@
+require_relative 'buffer'
+
 class CompactSizer
 	def size; end
 	# Get max size such that (offset + size, offset + len) is unallocated
@@ -20,7 +22,7 @@ end
 
 # Read a buffer to look for zeros
 class ReadSizer < CompactSizer
-	DefaultBlockSize = 512
+	DefaultBlockSize = Buffer::DefaultBlockSize
 	def initialize(buf, block_size = DefaultBlockSize)
 		@buf, @block_size = buf, block_size
 	end

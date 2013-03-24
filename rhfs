@@ -34,11 +34,16 @@ subcommands = [
 		opt :partition, "Use a partition table"
 		opt :format, "Include a valid HFS+ filesystem (Mac only)"
 		opt :band, "Size of each band of the image", :type => :string,
-			:default => "8m"
+			:default => Sparsebundle::DefaultBandSizeOpt
 	end,
 	Subcommand.new(:compact, "PATH", "Shrink a sparsebundle") do
 		opt :apple, "Use Apple's hdiutil instead of native support (Mac only)"
 		opt :search, "Reclaim more space, but take longer"
+	end,
+	Subcommand.new(:convert, "INPUT OUTPUT", "Convert between formats") do
+		opt :raw, "Output should be a raw image"
+		opt :sparsebundle, "Output should be a sparsebundle"
+		opt :band, "Size of bands of output sparsebundle", :type => :string
 	end,
 	Subcommand.new(:help, "[SUBCOMMAND]", "Show help on a subcommand") { },
 ]

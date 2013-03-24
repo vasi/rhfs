@@ -1,7 +1,5 @@
 require_relative 'apm'
 require_relative 'compact'
-require_relative 'hfs'
-require_relative 'hfsplus'
 require_relative 'hdiutil'
 require_relative 'sparsebundle'
 require_relative 'utils'
@@ -24,15 +22,6 @@ class RHFS
 		args << '-imagekey' << "sparse-band-size=#{band_sectors}"
 		args << '-layout' << (partitioned ? 'SPUD' : 'NONE')
 		Hdiutil.create(path, *args)
-	end
-	
-	def self.compact_prep_vol(buf)
-		return unless HFSPlus.identify(buf) == :HFSWrapper
-		
-		# Add the flag whose absence gives hdiutil trouble
-		hfs = HFS.new(buf)
-		hfs.mdb.atrb |= HFS::MDB::AtrbUnmounted
-		hfs.write_mdb
 	end
 	
 	def self.compact_hdiutil(path)
@@ -73,23 +62,50 @@ end
 
 class RHFSCommands
 	def self.create(opts, *args)
+		size, path, too_many = *args
 		raise Trollop::CommandlineError.new("Bad number of arguments") \
-			unless args.size == 2
-		size, path = *args
-		size = RHFS.size(size)
-		band_size = RHFS.size(opts[:band])
+			unless path && !too_many
+		size = RHFS.size_spec(size)
+		band_size = RHFS.size_spec(opts[:band])
 		method = opts[:format] ? :create_hdiutil : :create_native
 		RHFS.send(method, path, opts[:partition], size, band_size)
 	end
 	
 	def self.compact(opts, *args)
+		path, too_many = *args
 		raise Trollop::CommandlineError.new("Bad number of arguments") \
-			unless args.size == 1
-		path, = *args
+			unless path && !too_many
 		if opts[:apple]
 			RHFS.compact_hdiutil(path)
 		else
 			RHFS.compact_native(path, opts[:search])
+		end
+	end
+	
+	def self.convert(opts, *args)
+		input, output, too_many = *args
+		raise Trollop::CommandlineError.new("Bad number of arguments") \
+			unless output && !too_many
+		
+		formats = [:sparsebundle, :raw].select { |k| opts[k] }
+		raise Trollop::CommandlineError.new("Output can only be one format") \
+			if formats.size > 1
+		format, = *formats
+		
+		RHFS.open(input) do |type, src|
+			format ||= (type == Sparsebundle ? :raw : :sparsebundle)
+			raise Trollop::CommandlineError.new(
+				"Band size only applies to sparsebundles") \
+					if format != :sparsebundle && opts[:band]
+			
+			block = lambda { |dst| src.copy(dst) }
+			case format
+				when :raw; IOBuffer.new(output, &block)
+				when :sparsebundle
+					RHFS.sparsebundle_open_or_create(output, src.size,
+						opts[:band], &block)
+				else; raise "Unknown format"
+			end
 		end
 	end
 end
