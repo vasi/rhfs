@@ -10,14 +10,13 @@ class Buffer
 	def pwrite(off, buf); end
 	
 	# Optional operation
-	def zero(off, len); pwrite(off, "\0" * len); end
+	def zero(off, len)
+		each_block(off, len) { |o, l| pwrite(o, "\0" * l) }
+	end
 	
 	def copy(dest, bsize = DefaultBlockSize)
-		off = 0
-		while off < size
-			len = [bsize, size - off].min
-			dest.pwrite(start, pread(start, len))
-			off += len
+		each_block(0, size, bsize) do |off, len|
+			dest.pwrite(off, pread(off, len))
 		end
 	end
 	
@@ -35,6 +34,7 @@ class Buffer
 	end
 	
 	def eof?; @pos >= size; end
+	
 	
 	# Implement required IO operations for BinData::IO
 	attr_reader :pos
@@ -62,6 +62,7 @@ class Buffer
 		return ret
 	end
 	
+	
 	# Helpers for reading structures
 	def st_read(st, off = 0)
 		seek(off)
@@ -75,6 +76,17 @@ class Buffer
 	# Creation of sub-buffers
 	def sub(off, size = nil, &block)
 		SubBuffer.new(self, off, size, &block)
+	end
+	
+	# Helper for doing operations in blocks
+	def each_block(off = 0, len = nil, bsize = DefaultSize, &block)
+		len ||= size - off
+		last = off + len
+		while off < last
+			blen = [len, bsize].min
+			block.(off, blen)
+			off += blen
+		end
 	end
 end
 

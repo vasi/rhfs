@@ -70,7 +70,7 @@ class Sparsebundle < Buffer
 		end
 		
 		def copy_band(dest, off)
-			dest.pwrite(off, pread(0, alloc)) if alloc != 0
+			@io.copy(dest.sub(off)) if alloc != 0
 			dest.zero(off + alloc, size - alloc) if size > alloc
 		end
 	end
