@@ -5,19 +5,19 @@ require_relative 'utils'
 class HFSPlus
 class BTree	
 	class Node
-		def self.create(tree, buf)
+		def self.create(tree, idx, buf)
 			desc = buf.st_read(NodeDesc)
 			klass = case desc.kind
 				when NodeLeaf; LeafNode
 				when NodeIndex; IndexNode
 				else; Node
 			end
-			klass.new(tree, buf, desc)
+			klass.new(tree, idx, buf, desc)
 		end
 		
-		attr_reader :desc
-		def initialize(tree, buf, desc)
-			@tree, @buf, @desc = tree, buf, desc
+		attr_reader :desc, :index, :tree
+		def initialize(tree, idx, buf, desc)
+			@tree, @index, @buf, @desc = tree, idx, buf, desc
 			
 			off_type = BinData::Array.new(:type => :uint16be,
 				:initial_length => @desc.numRecords + 1)
@@ -31,6 +31,9 @@ class BTree
 			@buf.sub(o, @offsets[i + 1] - o)
 		end
 		def record(i); record_buf(i); end
+		def record_offset(i); @offsets[i]; end
+		
+		def offset_tree; @index * @tree.node_size; end
 		
 		def each(&block)
 			 0.upto(count - 1) { |i| block.(record(i)) }
@@ -41,9 +44,9 @@ class BTree
 	end
 	class KeyedNode < Node
 		class Record
-			attr_reader :key
-			def initialize(node, buf)
-				@node, @buf = node, buf
+			attr_reader :key, :index, :node
+			def initialize(node, idx, buf)
+				@node, @index, @buf = node, index, buf
 				klen = buf.st_read(BinData::Uint16be)
 				koff = klen.num_bytes
 				@key = @node.key(buf.sub(koff, klen))
@@ -51,13 +54,18 @@ class BTree
 			end
 			
 			def data; @node.recdata(@buf.sub(@doff)); end
+			def data_offset; @doff; end
+			
+			def offset_node; @node.record_offset(@index); end
+			def offset_tree; @node.offset_tree + offset_node; end
+			def data_offset_tree; offset_tree + data_offset; end
 
 			def pretty_print_instance_variables
 				[:@key, :data]
 			end
 		end
 		
-		def record(i); Record.new(self, super); end
+		def record(i); Record.new(self, i, super); end
 		def key(b); @tree.key(b); end
 		
 		# Last index with a key <= k
@@ -120,7 +128,7 @@ class BTree
 	def pretty_print_instance_variables; instance_variables - [:@buf]; end
 
 	def node_size; @header.nodeSize; end
-	def node(i); Node.create(self, @buf.sub(i * node_size)); end
+	def node(i); Node.create(self, i, @buf.sub(i * node_size)); end
 	def root; node(header.rootNode); end
 	
 	def key(buf); buf.read; end
