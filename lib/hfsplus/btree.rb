@@ -46,7 +46,7 @@ class BTree
 		class Record
 			attr_reader :key, :index, :node
 			def initialize(node, idx, buf)
-				@node, @index, @buf = node, index, buf
+				@node, @index, @buf = node, idx, buf
 				klen = buf.st_read(BinData::Uint16be)
 				koff = klen.num_bytes
 				@key = @node.key(buf.sub(koff, klen))
@@ -63,6 +63,8 @@ class BTree
 			def pretty_print_instance_variables
 				[:@key, :data]
 			end
+			
+			def each_leaf(*args, &b); node.each_leaf(index, *args, &b); end
 		end
 		
 		def record(i); Record.new(self, i, super); end
@@ -99,10 +101,15 @@ class BTree
 			return self, i, r
 		end
 		
-		def each_leaf(i, &block)
+		def each_leaf(i, skip_self = false, &block)
 			n = self
 			loop do
-				block[n.record(i)]
+				if skip_self
+					skip_self = false
+				else
+					block.(n.record(i))
+				end
+				
 				i += 1
 				next if i < n.count
 				
