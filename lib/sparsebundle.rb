@@ -8,9 +8,9 @@ require_relative 'utils'
 
 class Sparsebundle < Buffer
 	class Band < Buffer
-		attr_reader :size
-		def initialize(path, size, rw = true)
-			@path, @size, @rw = path, size, rw
+		attr_reader :size, :index
+		def initialize(idx, path, size, rw = true)
+			@index, @path, @size, @rw = idx, path, size, rw
 			@io = nil
 			open if File.exist?(@path)
 		end
@@ -91,7 +91,7 @@ class Sparsebundle < Buffer
 	Sector = 512
 	DefaultBandSizeOpt = "8m"
 	DefaultBandSize = RHFS.size_spec(DefaultBandSizeOpt)
-	
+	BandCacheSize = 8
 	
 	attr_reader :size, :band_size
 	def initialize(path, rw = true, &block)
@@ -110,8 +110,8 @@ class Sparsebundle < Buffer
 		
 		lock
 		
-		band_count = @size / @band_size
-		@bands = [nil] * band_count
+		@band_count = @size / @band_size
+		@bands = [nil] * BandCacheSize
 		
 		with(&block)
 	end
@@ -165,12 +165,16 @@ class Sparsebundle < Buffer
 	end
 	
 	def band(idx)
-		raise "Nonexistent band in sparsebundle" if idx >= @bands.count
-		@bands[idx] ||= begin
-			path = File.join(@path, PathBands, "%x" % idx)
-			size = [@band_size, @size - idx * @band_size].min
-			Band.new(path, size, @rw)
-		end
+		raise "Nonexistent band in sparsebundle" if idx >= @band_count
+		
+		cache_idx = idx % @bands.count
+		b = @bands[cache_idx]
+		return b if b && b.index == idx
+		
+		b.close if b
+		path = File.join(@path, PathBands, "%x" % idx)
+		size = [@band_size, @size - idx * @band_size].min
+		return (@bands[cache_idx] = Band.new(idx, path, size, @rw))
 	end
 		
 	def compact(sizer, base = nil)
@@ -182,7 +186,7 @@ class Sparsebundle < Buffer
 	
 	
 	def bandlist(off, &block)
-		(off / @band_size).upto(@bands.count - 1) do |i|
+		(off / @band_size).upto(@band_count - 1) do |i|
 			block.(band(i), i * @band_size)
 		end
 	end
