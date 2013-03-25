@@ -1,4 +1,5 @@
 - test on Linux
+- native HFS initialization?
 - 'resize' command
 	- ok to fail on wrapped HFS+
 	- ok to fail on journal or bad blocks
