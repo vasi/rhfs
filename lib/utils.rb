@@ -56,4 +56,19 @@ class RHFS
 			klass.new(path, :rw, &block)
 		end
 	end
+	
+	def self.find_hfsplus(buf)
+		ok = proc do |b|
+			i = HFSPlus.identify(b)
+			i == :HFSPlus || i == :HFSX || i == :HFSWrapper
+		end
+		
+		return HFSPlus.new(buf) if ok.(buf)
+		apm = APM.new(buf)
+		apm.partitions do |pt|
+			b = pt.buffer
+			return HFSPlus.new(b) if ok.(b)
+		end
+		raise "Can't find an HFS+ filesystem"
+	end
 end
