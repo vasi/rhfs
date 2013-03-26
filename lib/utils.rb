@@ -24,9 +24,11 @@ class RHFS
 		hfs.write_mdb
 	end
 	
-	def self.buf_open(path, rw = true, &block)
+	def self.buf_open(path, rw = true, must_exist = false, &block)
 		type = file = nil
 		unless File.exist?(path)
+			raise Trollop::CommandlineError.new(
+				"Input file doesn't exist") if must_exist
 			block.(nil, nil)
 			return
 		end

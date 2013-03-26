@@ -96,10 +96,7 @@ class RHFSCommands
 		band_size = RHFS.size_spec(opts[:band] ||
 			Sparsebundle::DefaultBandSizeOpt)
 		
-		RHFS.buf_open(input, false) do |itype, src|
-			raise Trollop::CommandlineError.new(
-				"Input file doesn't exist") unless src
-			
+		RHFS.buf_open(input, false, :must_exist) do |itype, src|			
 			RHFS.buf_open(output) do |type, dst|
 				raise "Existing output has wrong format" \
 					if type && format && type != format
@@ -120,4 +117,17 @@ class RHFSCommands
 			end
 		end
 	end
+	
+	def self.access(opts, *args)
+		img, path, too_many = *args
+		raise Trollop::CommandlineError.new("Bad number of arguments") \
+			unless path && !too_many
+		RHFS.buf_open(img, false, :must_exist) do |_, input|
+			hfs = HFSPlus.new(input)
+			fork = hfs.path_fork(path) or raise "Path doesn't exist in image"
+			
+			output = opts[:output] ? open(opts[:output], 'w') : $stdout
+			fork.copy(IOBuffer.new(output))
+		end
+	end	
 end

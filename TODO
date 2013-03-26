@@ -7,7 +7,8 @@
 		- ok to copy rather than resize in-situ
 		- just relocate extents, don't implement full r/w btrees
 		- i think we're too slow :(
-	- copy files to/from fs
+	- access files on HFS+
+		- could work inside APM?
 - README
 	- requirements: ruby2, gems
 	- related: sparsebundlefs, SheepShaver, hdiutil

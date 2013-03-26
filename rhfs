@@ -35,7 +35,7 @@ subcommands = [
 		opt :band, "Size of each band of the image", :type => :string,
 			:default => Sparsebundle::DefaultBandSizeOpt
 	end,
-	Subcommand.new(:compact, "PATH", "Shrink a sparsebundle") do
+	Subcommand.new(:compact, "IMAGE", "Shrink a sparsebundle") do
 		opt :apple, "Use Apple's hdiutil instead of native support (Mac only)"
 		opt :search, "Reclaim more space, but take longer"
 	end,
@@ -43,6 +43,10 @@ subcommands = [
 		opt :raw, "Output should be a raw image"
 		opt :sparsebundle, "Output should be a sparsebundle"
 		opt :band, "Size of bands of output sparsebundle", :type => :string
+	end,
+	Subcommand.new(:access, "IMAGE PATH", "Access files from HFS+") do
+		opt :output, "Location for output (instead of stdout)",
+			:type => :string
 	end,
 	Subcommand.new(:help, "[SUBCOMMAND]", "Show help on a subcommand") { },
 ]

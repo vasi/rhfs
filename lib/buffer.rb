@@ -19,6 +19,7 @@ class Buffer
 			dest.pwrite(off, pread(off, len))
 		end
 	end
+	def copy_band(dest, band_off); copy(dest.sub(band_off)); end
 	
 	
 	# Initialization
