@@ -13,8 +13,10 @@ class HFSPlus
 	HeaderOffset = 1024
 	
 	class Extent < Buffer
-		def initialize(fs, ext); @fs, @ext = fs, ext; end
-		def size; @ext.blockCount * @fs.asize; end
+		def initialize(fs, ext, sz = nil)
+			@fs, @ext, @size = fs, ext, sz
+		end
+		def size; @size || (@ext.blockCount * @fs.asize); end
 		def start; @ext.startBlock * @fs.asize; end
 		def pread(off, len); @fs.buf.pread(start + off, len); end
 		def pwrite(off, buf); @fs.buf.pwrite(start + off, buf); end
@@ -37,13 +39,16 @@ class HFSPlus
 		
 		def bandlist(off, &block)
 			b = off / @fs.asize
-			extent_group(b) do |start, exts|
+			extent_group(b) do |bl_start, exts|
 				exts.each do |e|
-					if b < start + e.blockCount
-						ee = Extent.new(@fs, e)
-						block.(ee, start * @fs.asize)
+					bl_fin = bl_start + e.blockCount
+					if b < bl_fin
+						start = bl_start * @fs.asize
+						fin = [bl_fin * @fs.asize, @fd.logicalSize].min
+						ee = Extent.new(@fs, e, fin - start)
+						block.(ee, bl_start * @fs.asize)
 					end
-					start += e.blockCount
+					bl_start += e.blockCount
 				end
 			end
 		end
