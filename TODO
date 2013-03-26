@@ -8,6 +8,7 @@
 		- just relocate extents, don't implement full r/w btrees
 		- i think we're too slow :(
 	- copy files to HFS+?
+- make us fast! probably requires rewrite :(
 - README
 	- requirements: ruby2, gems
 	- related: sparsebundlefs (kpartx), SheepShaver, hdiutil
