@@ -1,4 +1,8 @@
-#!/usr/bin/env rvm 2.0 do ruby
+#!/usr/bin/env ruby
+
+# We need String.byteslice
+raise "Require ruby 1.9.3" unless RUBY_VERSION >= "1.9.3"
+
 require_relative 'lib/rhfs-tools'
 
 require 'trollop'

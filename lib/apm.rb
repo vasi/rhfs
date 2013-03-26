@@ -114,7 +114,7 @@ class APM
 	end
 	
 	
-	def add(type, **opts)
+	def add(type, opts = {})
 		if @entries.empty? # Need an entry for the partition map itself
 			@entries << Entry.new(:type => TypePMAP, :pblock_start => 1,
 				:pblocks => DefaultEntries)

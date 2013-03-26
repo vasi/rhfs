@@ -115,7 +115,7 @@ class MultiSizer < CompactSizer
 	end
 	
 	attr_reader :size
-	def initialize(size, **sizers)
+	def initialize(size, sizers = {})
 		@size = size
 		@sorted = false
 		@sizers = sizers.map { |o,s| Sub.new(o, s) }
