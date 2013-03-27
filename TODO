@@ -8,9 +8,3 @@
 		- i think we're too slow :(
 	- copy files to HFS+?
 - make us fast! probably requires rewrite :(
-- README
-	- requirements: ruby 1.9.3, gems
-	- related: sparsebundlefs (kpartx), SheepShaver, hdiutil
-	- C program
-	- "Burn" in Classic
-- tell SheepShaver folk about the new tool
