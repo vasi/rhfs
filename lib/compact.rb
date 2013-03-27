@@ -34,7 +34,7 @@ class ReadSizer < CompactSizer
 			start = [last - @block_size, off].max
 			bsize = last - start
 			block = @buf.pread(start, bsize)
-			r = block.bytes.reverse.find_index { |b| b != 0 }
+			r = block.bytes.to_a.reverse.find_index { |b| b != 0 }
 			return last - r - off if r
 			last = start
 		end
@@ -74,7 +74,8 @@ class BufAllocBitmap < AllocBitmap
 		@buf = buf
 	end
 	def read(ci)
-		@cache_buf = @buf.pread(ci * @cache_size, @cache_size).bytes
+		@cache_buf = @buf.pread(ci * @cache_size, @cache_size).
+			bytes.to_a
 		super
 	end
 end
