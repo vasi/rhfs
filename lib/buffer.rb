@@ -84,7 +84,7 @@ class Buffer
 		len ||= size - off
 		last = off + len
 		while off < last
-			blen = [len - off, bsize].min
+			blen = [last - off, bsize].min
 			block.(off, blen)
 			off += blen
 		end
