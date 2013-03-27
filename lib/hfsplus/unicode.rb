@@ -90,7 +90,7 @@ class HFSPlus
 		end
 		
 		def self.atos(a) # Array of codepoints to UTF-16be string
-			a.inject(''.encode(Encoding), :<<)
+			a.map { |c| c.chr(Encoding) }.join
 		end
 		def self.smap(s, &block)
 			atos(s.codepoints.map { |c| block.(c) }.inject([], :concat))
