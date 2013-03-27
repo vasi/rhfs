@@ -91,9 +91,5 @@ Trollop.with_standard_exception_handling sub.parser do
 		exit(-2)
 	end
 	
-	begin
-		RHFSCommands.send(sub.name, opts, *ARGV)
-	rescue ArgumentError
-		raise Trollop::CommandlineError.new("Wrong number of arguments")
-	end
+	RHFSCommands.send(sub.name, opts, *ARGV)
 end
