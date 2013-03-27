@@ -30,7 +30,8 @@ class Sparsebundle < Buffer
 			buf = buf.byteslice(0, len)
 			
 			# Don't write where unnecessary
-			zeros = buf.match(/\0*$/)[0].size
+			zeros = buf.bytes.to_a.reverse.find_index { |b| b != 0 } ||
+				buf.size
 			nz = len - zeros
 			return buf.bytesize if !@io && nz == 0
 			
