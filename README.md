@@ -9,8 +9,13 @@ Installation
 Just clone the repository with git, and run ```./rhfs```
 
 Requirements:
-- Ruby 1.9.3 or later
+- Ruby 1.9.3 or later. You really need 1.9.3, **1.8.x will not work**
+	- On Debian/Ubuntu, run `apt-get install ruby1.9.1`.
+	  Yes, this really gives you 1.9.3, not 1.9.1.
+	- On OS X, you can use [rvm](https://rvm.io/). Install rvm, then
+	  `rvm install 2.0.0` and `rvm use 2.0.0`.
 - Ruby gems trollop, bindata, and plist
+	- Remember to install them with ruby 1.9 or 2.0, not with 1.8
 
 Usage
 =====
