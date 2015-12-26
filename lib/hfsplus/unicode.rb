@@ -5,30 +5,31 @@ class HFSPlus
 	class UniStr255 < BERecord
 		uint16	:len, :value => lambda { :unicode.length }
 		array	:unicode, :type => :uint16, :initial_length => :len
-		
+
 		def to_u(case_sensitive)
 			Unicode.new(unicode.snapshot, case_sensitive)
 		end
 	end
-		
+
 	class Unicode
 		Encoding = 'UTF-16BE'
-		
+
 		def initialize(s, case_sensitive)
 			Unicode.read_tables
 			s = Unicode.atos(s) unless s.respond_to?(:each_codepoint)
-			
+
 			@decomp = Unicode.decompose(s)
 			@case = case_sensitive ? @decomp : Unicode.case_fold(@decomp)
 		end
 		def to_s; @decomp; end
 		def cmp_key; @case; end
+    def empty?; to_s.empty?; end
 		include HFSPlus::KeyComparable
-		
-		
+
+
 		def self.read_tables
 			return if @case_table
-			
+
 			data = []
 			Tables.each_line do |line|
 				# Remove comments
@@ -36,7 +37,7 @@ class HFSPlus
 				line.gsub!(%r{/\*.*?\*/}, '')
 				line.strip!
 				next if line.empty?
-								
+
 				if line.match(/^[[:alpha:]]\w+$/) # Tag
 					data << line
 				else				# Data: array of integers
@@ -44,62 +45,62 @@ class HFSPlus
 						map { |s| s.to_i(16) }
 				end
 			end
-			
+
 			@case_table = []
 			while d = data.shift
 				break if d == "TABLE_DECOMPOSE"
 				@case_table.concat(d)
 			end
-			
+
 			@decomp_table = {}
 			while d = data.shift
 				v = data.shift
 				@decomp_table[d.first] = v
 			end
 		end
-		
+
 		# See Unicode spec, section 3.12
 		def self.decompose_hangul(c)
 			sbase, scount = 0xAC00, 11172
 			sidx = c - sbase
 			return nil if sidx < 0 || sidx >= scount
-			
+
 			lbase, vbase, tbase = 0x1100, 0x1161, 0x11a7
 			ncount, tcount = 588, 28
-			
+
 			lpart = lbase + (sidx / ncount)
 			vpart = vbase + ((sidx % ncount) / tcount)
 			tpart = tbase + (sidx % tcount)
 			return [lpart, vpart, tpart]
 		end
-		
+
 		def self.decompose_char(c)
 			r = decompose_hangul(c)
 			r ||= @decomp_table[c]
 			return r || [c]
 		end
-		
+
 		def self.case_fold_char(c)
 			hi, lo = (c >> 8), (c & 0xff)
-			
+
 			o = @case_table[hi]
 			return [c] if o == 0
-			
+
 			o = @case_table[o + lo]
 			return o == 0 ? [] : [o]
 		end
-		
+
 		def self.atos(a) # Array of codepoints to UTF-16be string
 			a.map { |c| c.chr(Encoding) }.join
 		end
 		def self.smap(s, &block)
 			atos(s.codepoints.map { |c| block.(c) }.inject([], :concat))
 		end
-		
+
 		def self.decompose(s); smap(s) { |c| decompose_char(c) }; end
 		def self.case_fold(s); smap(s) { |c| case_fold_char(c) }; end
 	end
-	
+
 	def string(s)
 		Unicode.new(s, case_sensitive)
 	end
@@ -110,7 +111,7 @@ class HFSPlus
 class Unicode
 	Tables = <<EOS
 	// Case table from FastUnicodeCompare.c (Tech Note 1150)
-	
+
     // High-byte indices ( == 0 iff no case mapping and no ignorables )
 
     /* 0 */ 0x0100, 0x0200, 0x0000, 0x0300, 0x0400, 0x0500, 0x0000, 0x0000,
@@ -679,7 +680,7 @@ TABLE_DECOMPOSE
 
 0x006F 0x0302
 
- 	 	 	 	 	 
+
 0x00F5
 
 0x006F 0x0303
@@ -796,7 +797,7 @@ TABLE_DECOMPOSE
 
 0x0045 0x0307
 
- 	 	 	 	 	 
+
 0x0117
 
 0x0065 0x0307
@@ -945,7 +946,7 @@ TABLE_DECOMPOSE
 
 0x004E 0x0327
 
- 	 	 	 	 	 
+
 0x0146
 
 0x006E 0x0327
@@ -982,7 +983,7 @@ TABLE_DECOMPOSE
 
 0x006F 0x030B
 
- 	 	 	 	 	 
+
 0x0154
 
 0x0052 0x0301
@@ -1931,7 +1932,7 @@ TABLE_DECOMPOSE
 
 0x0E4D 0x0E32
 
- 	 	 	 	 	 
+
 0x0EB3
 
 0x0ECD 0x0EB2
@@ -2608,7 +2609,7 @@ TABLE_DECOMPOSE
 
 0x005A 0x0331
 
- 	 	 	 	 	 
+
 0x1E95
 
 0x007A 0x0331
@@ -3465,7 +3466,7 @@ TABLE_DECOMPOSE
 
 0x03B1 0x0345 0x0314 0x0300
 
- 	 	 	 
+
 0x1F84
 
 0x03B1 0x0345 0x0313 0x0301

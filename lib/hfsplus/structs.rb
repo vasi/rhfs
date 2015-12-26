@@ -6,86 +6,87 @@ class HFSPlus
 		def <=>(other); cmp_key <=> other.cmp_key; end
 		include Comparable
 	end
-	
-	
+
+
 	DataFork = 0
 	ResourceFork = 0xff
-	
+
+  IDRootParent = 1
 	IDRootFolder = 2
 	IDExtents = 3
 	IDCatalog = 4
 	IDAllocation = 6
-	
+
 	class Point16 < BERecord
 		int16	:v
 		int16	:h
 	end
-	
+
 	class Rect16 < BERecord
 		int16	:top
 		int16	:left
 		int16	:bottom
 		int16	:right
 	end
-	
+
 	class ExtentDesc < BERecord
 		uint32	:startBlock
 		uint32	:blockCount
 	end
-	
+
 	class ForkData < BERecord
 		uint64	:logicalSize
 		uint32	:clumpSize
 		uint32	:totalBlocks
 		array	:extents, :type => :extentDesc, :initial_length => 8
 	end
-	
+
 	class Header < BERecord
 		HFSPlusSignature = "H+"
 		HFSXSignature = "HX"
-		
+
 		string	:signature, :length => 2
 		uint16	:version
 		uint32	:attributes
 		string	:lastMountedVersion, :length => 4
 		uint32	:journalInfoBlock
-		
+
 		uint32	:createDate
 		uint32	:modifyDate
 		uint32	:backupDate
 		uint32	:checkedDate
-		
+
 		uint32	:fileCount
 		uint32	:folderCount
-		
+
 		uint32	:blockSize
 		uint32	:totalBlocks
 		uint32	:freeBlocks
-		
+
 		uint32	:nextAllocation
 		uint32	:rsrcClumpSize
 		uint32	:dataClumpSize
 		uint32	:nextCatalogID
-		
+
 		uint32	:writeCount
 		uint64	:encodingsBitmap
-		
+
 		array	:finderInfo, :type => :uint32, :initial_length => 8
-		
+
 		forkData	:allocationFile
 		forkData	:extentsFile
 		forkData	:catalogFile
 		forkData	:attributesFile
 		forkData	:startupFile
 	end
-	
-	
+
+
 	class BTree
 		NodeLeaf = -1
 		NodeIndex = 0
 		NodeHeader = 1
 		NodeMap = 2
-		
+
 		class NodeDesc < BERecord
 			uint32	:fLink
 			uint32	:bLink
@@ -94,7 +95,7 @@ class HFSPlus
 			uint16	:numRecords
 			uint16	:reserved
 		end
-		
+
 		class Header < BERecord
 			uint16	:treeDepth
 			uint32	:rootNode
@@ -111,23 +112,23 @@ class HFSPlus
 			uint8	:keyCompareType
 			uint32	:attributes
 			array	:reserved3, :type => :uint32, :initial_length => 16
-			
+
 			KeyCompareCaseFolding = 0xCF
 			KeyCompareBinary = 0xBC
 		end
 	end
-	
+
 	class Catalog < BTree
 		class KeyData < BERecord
 			uint32		:parentID
 			uniStr255	:nodeName
 		end
-		
+
 		RecordFolder = 1
 		RecordFile = 2
 		RecordThreadFolder = 3
 		RecordThreadFile = 4
-		
+
 		class BSDInfo < BERecord
 			uint32	:ownerID
 			uint32	:groupID
@@ -163,7 +164,7 @@ class HFSPlus
 			uint16	:reserved2
 			uint32	:putAwayFolderID
 		end
-		
+
 		class Folder < BERecord
 			int16	:recordType
 			uint16	:flags
@@ -193,7 +194,7 @@ class HFSPlus
 			extFileInfo	:finderInfo
 			uint32		:textEncoding
 			uint32		:reserved2
-			
+
 			forkData	:dataFork
 			forkData	:resourceFork
 		end
@@ -204,7 +205,7 @@ class HFSPlus
 			uniStr255	:nodeName
 		end
 	end
-	
+
 	class ExtentsOverflow < BTree
 		class KeyData < BERecord
 			uint8	:forkType

@@ -48,6 +48,7 @@ subcommands = [
 		opt :sparsebundle, "Output should be a sparsebundle"
 		opt :band, "Size of bands of output sparsebundle", :type => :string
 	end,
+	Subcommand.new(:list, "IMAGE", "List files on an HFS+ image") { },
 	Subcommand.new(:access, "IMAGE PATH", "Access files from HFS+") do
 		opt :output, "Location for output (instead of stdout)",
 			:type => :string
@@ -57,7 +58,7 @@ subcommands = [
 find_sub = proc { |n| subcommands.find { |s| s.name.to_s == n } }
 
 
-global_parser = Trollop::Parser.new do	
+global_parser = Trollop::Parser.new do
 	size_max = subcommands.map { |s| s.name.size }.max
 	extra = "Subcommands:\n" + subcommands.map do |s|
 		"  %-*s: %s" % [size_max, s.name, s.desc]
@@ -65,7 +66,7 @@ global_parser = Trollop::Parser.new do
 	banner xbanner('SUBCOMMAND', '',
 		'Manipulate disk images for use with SheepShaver and BasiliskII',
 		extra)
-	
+
 	version "rhfs 0.1 (c) 2013 Dave Vasilevsky"
 	stop_on subcommands.map { |s| s.name.to_s }
 end
@@ -90,6 +91,6 @@ Trollop.with_standard_exception_handling sub.parser do
 		end
 		exit(-2)
 	end
-	
+
 	RHFSCommands.send(sub.name, opts, *ARGV)
 end

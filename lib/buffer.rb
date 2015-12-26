@@ -2,44 +2,44 @@
 # position pointers.
 class Buffer
 	DefaultBlockSize = 512
-	
+
 	# Basic operations
 	def close; end
 	def size; end
 	def pread(off, len); end
 	def pwrite(off, buf); end
-	
+
 	# Optional operation
 	def zero(off, len)
 		each_block(off, len) { |o, l| pwrite(o, "\0" * l) }
 	end
-	
+
 	def copy(dest, bsize = DefaultBlockSize)
 		each_block(0, size, bsize) do |off, len|
 			dest.pwrite(off, pread(off, len))
 		end
 	end
 	def copy_band(dest, band_off); copy(dest.sub(band_off)); end
-	
-	
+
+
 	# Initialization
 	def initialize
 		@pos = 0
 	end
-	
+
 	def with(&block)
 		if block
 			r = block.(self)
 			close
 		end
 	end
-	
+
 	def eof?; @pos >= size; end
-	
-	
+
+
 	# Implement required IO operations for BinData::IO
 	attr_reader :pos
-	
+
 	def seek(off, whence = IO::SEEK_SET)
 		case whence
 			when IO::SEEK_SET; @pos = off
@@ -48,7 +48,7 @@ class Buffer
 		end
 		return @pos
 	end
-	
+
 	def read(len = nil)
 		take = [size - pos, 0].max
 		take = len if len && len < take
@@ -56,14 +56,14 @@ class Buffer
 		@pos += ret.bytesize
 		return ret
 	end
-	
+
 	def write(buf)
 		ret = pwrite(pos, buf)
 		@pos += ret
 		return ret
 	end
-	
-	
+
+
 	# Helpers for reading structures
 	def st_read(st, off = 0)
 		seek(off)
@@ -73,12 +73,12 @@ class Buffer
 		seek(off)
 		st.write(self)
 	end
-	
+
 	# Creation of sub-buffers
 	def sub(off, size = nil, &block)
 		SubBuffer.new(self, off, size, &block)
 	end
-	
+
 	# Helper for doing operations in blocks
 	def each_block(off = 0, len = nil, bsize = DefaultBlockSize, &block)
 		len ||= size - off
@@ -105,7 +105,7 @@ end
 
 class IOBuffer < Buffer
 	DefaultSize = 2**64
-	
+
 	def initialize(io, rw = true, size = nil, &block)
 		super()
 		if io.respond_to? :read
@@ -113,12 +113,12 @@ class IOBuffer < Buffer
 		else
 			@io = open(io, rw ? (File::RDWR | File::CREAT) : File::RDONLY)
 		end
-		
+
 		@size_spec = size
 		find_size
 		with(&block)
 	end
-	
+
 	def find_size
 		if @size_spec
 			@size = @size_spec
@@ -132,7 +132,7 @@ class IOBuffer < Buffer
 			@size = DefaultSize
 		end
 	end
-	
+
 	attr_reader :size
 	def close; @io.close unless @io.closed?; end
 	def pread(off, len)
@@ -145,12 +145,12 @@ class IOBuffer < Buffer
 		@size = [@size, off + ret].max
 		return ret
 	end
-	
+
 	def truncate(len)
 		@io.truncate(len)
 		find_size
 	end
-	
+
 	def zero(off, len)
 		wlast = [off + len, size].min
 		super(off, wlast - off) if off < wlast
@@ -161,18 +161,18 @@ end
 module BandedBuffer
 	def bandify(off = 0, len = nil, &block)
 		len ||= size - off
-		
+
 		bandlist(off) do |b, band_off|
 			boff = off - band_off
 			bsize = b.size
 			blen = [len, bsize - boff].min
-			block.(b, boff, blen, band_off)			
+			block.(b, boff, blen, band_off)
 			off += blen
 			len -= blen
 			return if len == 0
 		end
 	end
-	
+
 	def pread(off, len)
 		ret = []
 		bandify(off, len) do |band, boff, blen, _|
@@ -182,7 +182,7 @@ module BandedBuffer
 		end
 		return ret.join
 	end
-		
+
 	def pwrite(off, buf)
 		ret = 0
 		bandify(off, buf.bytesize) do |band, boff, blen, _|
@@ -192,13 +192,13 @@ module BandedBuffer
 		end
 		return ret
 	end
-	
+
 	def zero(off, len)
 		bandify(off, len) do |band, boff, blen, _|
 			band.zero(boff, blen)
 		end
 	end
-	
+
 	def copy(dest)
 		bandify do |band, _, _, band_off|
 			band.copy_band(dest, band_off)
