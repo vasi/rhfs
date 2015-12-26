@@ -52,6 +52,8 @@ subcommands = [
 	Subcommand.new(:access, "IMAGE PATH", "Access files from HFS+") do
 		opt :output, "Location for output (instead of stdout)",
 			:type => :string
+		opt :fork, "Which fork to extract",
+			:type => :string
 	end,
 	Subcommand.new(:help, "[SUBCOMMAND]", "Show help on a subcommand") { },
 ]

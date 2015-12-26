@@ -122,10 +122,19 @@ class RHFSCommands
 		img, path, too_many = *args
 		raise Trollop::CommandlineError.new("Bad number of arguments") \
 			unless path && !too_many
-		RHFS.buf_open(img, false, :must_exist) do |_, input|
-			hfs = RHFS.find_hfsplus(input)
-			fork = hfs.path_fork(path) or raise "Path doesn't exist in image"
 
+    opts[:fork] ||= 'data'
+    case opts[:fork]
+      when 'data'
+        fork = HFSPlus::DataFork
+      when 'resource'
+        fork = HFSPlus::ResourceFork
+      else
+        raise Trollop::CommandlineError.new("Bad fork '#{opts[:fork]}'")
+    end
+
+    RHFS.hfs_read(img) do |hfs|
+			fork = hfs.path_fork(path, fork) or raise "Path doesn't exist in image"
 			output = opts[:output] ? open(opts[:output], 'w') : $stdout
 			fork.copy(IOBuffer.new(output))
 		end
