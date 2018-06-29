@@ -30,7 +30,7 @@ class APM
 		uint32	:pblock_start
 		uint32	:pblocks		# size
 		string	:name, :length => 32, :trim_padding => true
-		string	:type, :length => 32, :trim_padding => true
+		string	:partition_type, :length => 32, :trim_padding => true
 		
 		# optional
 		uint32	:lblocks_start	# logical blocks (from zero)
@@ -96,7 +96,7 @@ class APM
 		def offset; entry.pblock_start * blkSize; end
 		def size; entry.pblocks * blkSize; end
 		def buffer; @basebuf.sub(offset, size); end
-		def type; entry.type; end
+		def type; entry.partition_type; end
 		
 		def filesystem; APM.filesystem(buffer); end
 	end
@@ -116,7 +116,7 @@ class APM
 	
 	def add(type, opts = {})
 		if @entries.empty? # Need an entry for the partition map itself
-			@entries << Entry.new(:type => TypePMAP, :pblock_start => 1,
+			@entries << Entry.new(:partition_type => TypePMAP, :pblock_start => 1,
 				:pblocks => DefaultEntries)
 		end
 		
@@ -127,7 +127,7 @@ class APM
 		start = next_block
 		blocks = [blocks, @block0.blkCount - start].min
 		
-		entry = Entry.new(:type => type, :pblock_start => start,
+		entry = Entry.new(:partition_type => type, :pblock_start => start,
 			:pblocks => blocks)
 		entry.add_flags(*flags) if flags
 		
@@ -140,7 +140,7 @@ class APM
 		
 		# Zero out the partition map first
 		partitions do |pt|
-			next unless pt.type == TypePMAP
+			next unless pt.partition_type == TypePMAP
 			pt.buffer.pwrite(0, "\0" * pt.size)
 		end
 		
