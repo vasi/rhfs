@@ -1,0 +1,17 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    bindata (2.4.7)
+    optimist (3.0.1)
+    plist (3.5.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  bindata
+  optimist
+  plist
+
+BUNDLED WITH
+   2.1.4
