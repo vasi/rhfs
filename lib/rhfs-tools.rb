@@ -63,7 +63,7 @@ end
 class RHFSCommands
 	def self.create(opts, *args)
 		size, path, too_many = *args
-		raise Trollop::CommandlineError.new("Bad number of arguments") \
+		raise Optimist::CommandlineError.new("Bad number of arguments") \
 			unless path && !too_many
 		size = RHFS.size_spec(size)
 		band_size = RHFS.size_spec(opts[:band])
@@ -73,7 +73,7 @@ class RHFSCommands
 
 	def self.compact(opts, *args)
 		path, too_many = *args
-		raise Trollop::CommandlineError.new("Bad number of arguments") \
+		raise Optimist::CommandlineError.new("Bad number of arguments") \
 			unless path && !too_many
 		if opts[:apple]
 			RHFS.compact_hdiutil(path)
@@ -84,12 +84,12 @@ class RHFSCommands
 
 	def self.convert(opts, *args)
 		input, output, too_many = *args
-		raise Trollop::CommandlineError.new("Bad number of arguments") \
+		raise Optimist::CommandlineError.new("Bad number of arguments") \
 			unless output && !too_many
 
 		formats = {:sparsebundle => Sparsebundle, :raw => IOBuffer}
 		want = formats.keys.select { |k| opts[k] }.map { |k| formats[k] }
-		raise Trollop::CommandlineError.new("Output can only be one format") \
+		raise Optimist::CommandlineError.new("Output can only be one format") \
 			if want.count > 1
 		format = want.first
 
@@ -107,7 +107,7 @@ class RHFSCommands
 				# Default to opposite of input
 				type ||= format ||
 					(itype == Sparsebundle ? IOBuffer : Sparsebundle)
-				raise Trollop::CommandlineError.new(
+				raise Optimist::CommandlineError.new(
 					"Band size only applies to sparsebundles") \
 						if type != Sparsebundle && opts[:band]
 
@@ -120,7 +120,7 @@ class RHFSCommands
 
 	def self.access(opts, *args)
 		img, path, too_many = *args
-		raise Trollop::CommandlineError.new("Bad number of arguments") \
+		raise Optimist::CommandlineError.new("Bad number of arguments") \
 			unless path && !too_many
 
     opts[:fork] ||= 'data'
@@ -130,7 +130,7 @@ class RHFSCommands
       when 'resource'
         fork = HFSPlus::ResourceFork
       else
-        raise Trollop::CommandlineError.new("Bad fork '#{opts[:fork]}'")
+        raise Optimist::CommandlineError.new("Bad fork '#{opts[:fork]}'")
     end
 
     RHFS.hfs_read(img) do |hfs|
@@ -142,7 +142,7 @@ class RHFSCommands
 
   def self.list(opts, *args)
 		img, too_many = *args
-		raise Trollop::CommandlineError.new("Bad number of arguments") \
+		raise Optimist::CommandlineError.new("Bad number of arguments") \
 			unless img && !too_many
     RHFS.hfs_read(img) do |hfs|
       hfs.catalog.tree_path do |leaf, path|

@@ -5,7 +5,7 @@ raise "Require ruby 1.9.3" unless RUBY_VERSION >= "1.9.3"
 
 require_relative 'lib/rhfs-tools'
 
-require 'trollop'
+require 'optimist'
 require 'pp'
 
 def xbanner(name, usage, desc, extra = nil)
@@ -24,7 +24,7 @@ class Subcommand
 	attr_reader :name, :desc, :parser
 	def initialize(name, usage, desc, &block)
 		@name, @desc = name, desc
-		@parser = Trollop::Parser.new do
+		@parser = Optimist::Parser.new do
 			banner xbanner(name, usage, desc)
 			instance_eval(&block)
 		end
@@ -60,7 +60,7 @@ subcommands = [
 find_sub = proc { |n| subcommands.find { |s| s.name.to_s == n } }
 
 
-global_parser = Trollop::Parser.new do
+global_parser = Optimist::Parser.new do
 	size_max = subcommands.map { |s| s.name.size }.max
 	extra = "Subcommands:\n" + subcommands.map do |s|
 		"  %-*s: %s" % [size_max, s.name, s.desc]
@@ -74,21 +74,21 @@ global_parser = Trollop::Parser.new do
 end
 
 sub = nil
-Trollop.with_standard_exception_handling global_parser do
+Optimist.with_standard_exception_handling global_parser do
 	opts = global_parser.parse ARGV
-	cmd = ARGV.shift or raise Trollop::HelpNeeded
-	sub = find_sub.(cmd) or raise Trollop::CommandlineError.new(
+	cmd = ARGV.shift or raise Optimist::HelpNeeded
+	sub = find_sub.(cmd) or raise Optimist::CommandlineError.new(
 		"unknown subcommand #{cmd.inspect}")
 end
 
-Trollop.with_standard_exception_handling sub.parser do
+Optimist.with_standard_exception_handling sub.parser do
 	opts = sub.parser.parse ARGV
 	if sub.name == :help
-		raise Trollop::HelpNeeded if ARGV.count > 1
+		raise Optimist::HelpNeeded if ARGV.count > 1
 		if ARGV.empty?
 			global_parser.educate
 		else
-			scmd = find_sub.(ARGV.shift) or raise Trollop::HelpNeeded
+			scmd = find_sub.(ARGV.shift) or raise Optimist::HelpNeeded
 			scmd.parser.educate
 		end
 		exit(-2)

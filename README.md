@@ -14,7 +14,7 @@ Requirements:
 	  Yes, this really gives you 1.9.3, not 1.9.1.
 	- On OS X, you can use [rvm](https://rvm.io/). Install rvm, then
 	  `rvm install 2.0.0` and `rvm use 2.0.0`.
-- Ruby gems trollop, bindata, and plist
+- Ruby gems optimist, bindata, and plist
 	- Remember to install them with ruby 1.9 or 2.0, not with 1.8
 
 Usage

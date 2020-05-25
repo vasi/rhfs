@@ -27,7 +27,7 @@ class RHFS
 	def self.buf_open(path, rw = true, must_exist = false, opts = {}, &block)
 		type = file = nil
 		unless File.exist?(path)
-			raise Trollop::CommandlineError.new(
+			raise Optimist::CommandlineError.new(
 				"Input file doesn't exist") if must_exist
 			block.(nil, nil)
 			return
